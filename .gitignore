@@ -206,7 +206,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Other files
+# Other files and dirs
 *.xlsx
 *.csv
 *.log
+logs/
