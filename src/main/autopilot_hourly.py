@@ -670,7 +670,7 @@ if __name__ == "__main__":
 
     try:
         
-        
+
         # ----- выгрузка остатков из юнитки -----
         try:
             unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
@@ -686,7 +686,6 @@ if __name__ == "__main__":
         except Exception as e:
             logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
             raise ValueError
-
 
         # ----- promo, rating, prices, spp, цена с спп -----
         wb_data = get_data_from_WB(articles_sorted)
