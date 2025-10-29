@@ -3,7 +3,7 @@ import hashlib
 import json
 from pandas import DataFrame
 from gspread import worksheet
-import datetime
+from datetime import timedelta, datetime
 from gspread_dataframe import set_with_dataframe
 import psycopg2
 from psycopg2 import OperationalError
@@ -168,15 +168,11 @@ def send_df_to_google(df, sheet):
         print(f"An error occurred: {e}")
 
 
-from datetime import datetime
+
 
 import gspread
 from gspread_dataframe import set_with_dataframe
-from datetime import datetime
 import pandas as pd
-
-import pandas as pd
-from datetime import datetime
 
 def update_df_in_google(df: pd.DataFrame, sheet):
     """
@@ -281,7 +277,6 @@ def send_unique_id_to_google(df: DataFrame, sheet: worksheet):
         print(f"An error occurred: {e}")
 
 import pytz
-from datetime import timedelta, datetime
 # Устанавливаем московское время
 # Функция для получения временной метки "за 24 часа назад"
 def get_udf():
@@ -396,7 +391,6 @@ import hashlib
 import json
 from pandas import DataFrame
 from gspread import worksheet
-import datetime
 import openpyxl
 from gspread_dataframe import set_with_dataframe
 import psycopg2
