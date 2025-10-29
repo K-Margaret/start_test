@@ -24,8 +24,8 @@ from utils.env_loader import *
 from utils import my_pandas, my_gspread
 from utils.utils import load_api_tokens
 from utils.my_db_functions import fetch_db_data_into_dict
-from new_adv import get_all_adv_data, processed_adv_data
 
+from new_adv import get_all_adv_data, processed_adv_data
 
 
 # ---- SET UP ----
@@ -55,7 +55,8 @@ METRIC_TO_COL = {
     "ДРР": "EL",
     "cpm": "HW",
     "ctr": "FK",
-    "Органика": "IF"
+    "Органика": "IF",
+    "Остаток факт склад": "DS"
 }
 
 METRIC_RU = {
@@ -615,6 +616,26 @@ def push_data_static_range(sh, dct, metric_names, gsheet_headers, matched_metric
                 break
 
 
+def load_unit_remains(unit_sh = None):
+
+    # 1. take remains data from unit
+    skus = unit_sh.col_values(1)
+    remains = unit_sh.col_values(29)
+
+    if remains[0] != 'Остаток ФАКТ СКЛАД':
+        logging.error(f'''Проблема с выгрузкой остатков из юнит в ПУ: ожидаемое название колонки - Остаток ФАКТ СКЛАД - не
+                      совпадает с фактическим - {remains[0]}''')
+        raise ValueError
+    
+    skus = skus[1:]
+    remains = remains[1:]
+
+    unit_remains = {
+        int(skus[i]): int(remains[i]) if remains[i] != '' else None 
+        for i in range(len(skus))
+    }
+    
+    return unit_remains
 
 
 if __name__ == "__main__":
@@ -647,9 +668,24 @@ if __name__ == "__main__":
     # with open('autopilot_curr_metrics_full.json', 'r', encoding='utf-8') as f:
     #     matched_metrics = json.load(f)
 
-    try: 
+    try:
         
-        r = '''
+        # ----- выгрузка остатков из юнитки -----
+        try:
+            unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
+            unit_remains = load_unit_remains(unit_sh = unit_sh)
+
+            pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
+            output_data = [[value] for key, value in pilot_remains.items()]
+
+            col_letter = METRIC_TO_COL["Остаток факт склад"]
+            output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
+            my_gspread.add_data_to_range(sh, output_data, output_range)
+            logging.info('Остатки склада успешно загружены в ПУ')
+        except Exception as e:
+            logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
+            raise ValueError
+
         # ----- promo, rating, prices, spp, цена с спп -----
         wb_data = get_data_from_WB(articles_sorted)
 
@@ -686,7 +722,6 @@ if __name__ == "__main__":
             logging.info(f'Данные по Наша цена с СПП за сегодня были успешно добавлены в диапазон {metric_range}.')
         except Exception as e:
             logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
-        '''
 
         # ----- adv spend -----
         adv_spend = load_adv_spend(articles_sorted)
