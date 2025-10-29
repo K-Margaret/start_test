@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, date
 import itertools
 import asyncio
 import aiohttp
+import logging
 
 from utils.utils import batchify, load_api_tokens
 
@@ -36,17 +37,17 @@ async def adv_stat_async(campaign_ids: list, date_from: str, date_to: str, api_t
                 while retry_count < 5:
                     try:
                         async with session.get(url, params=params) as response:
-                            print(f"HTTP статус: {response.status}")
+                            logging.info(f"HTTP статус: {response.status}")
 
                             if response.status == 400:
                                 err = await response.json()
-                                print(f"Ошибка 400 {account}: {err.get('message') or err}")
+                                logging.error(f"Ошибка 400 {account}: {err.get('message') or err}")
                                 # retry_count += 1
                                 # await asyncio.sleep(60)
                                 continue
 
                             if response.status == 429:
-                                print("429 Too Many Requests — ждём минуту")
+                                logging.error("429 Too Many Requests — ждём минуту")
                                 retry_count += 1
                                 await asyncio.sleep(60)
                                 continue
@@ -62,7 +63,7 @@ async def adv_stat_async(campaign_ids: list, date_from: str, date_to: str, api_t
                             break
 
                     except aiohttp.ClientError as e:
-                        print(f"Сетевая ошибка для {account}: {e}")
+                        logging.error(f"Сетевая ошибка для {account}: {e}")
                         retry_count += 1
                         await asyncio.sleep(30)
 
@@ -88,7 +89,7 @@ def camp_list(api_token: str, account: str):
             res.raise_for_status()
             data = res.json()
         except Exception as e:
-            print(e)
+            logging.error(f"Error loading adverts: {e}")
             data = []
 
         if data:
@@ -113,7 +114,7 @@ def camp_list_manual(api_token: str, account: str):
             res.raise_for_status()
             data = res.json()
         except Exception as e:
-            print(e)
+            logging.error(f"Error loading adverts manually: {e}")
             data = []
 
         if data:
@@ -137,7 +138,7 @@ async def get_all_adv_data():
         campaign_ids = list(set(campaign_ids))
 
         date_from = date_to = date.today().strftime("%Y-%m-%d")
-        print(f"Получаем данные за {date_from} по ЛК {account}")
+        logging.info(f"Получаем данные за {date_from} по ЛК {account}")
         tasks.append(adv_stat_async(campaign_ids, date_from, date_to, api_token, account))
     stats = await asyncio.gather(*tasks)
     for stat in stats:
