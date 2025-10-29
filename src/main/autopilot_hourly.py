@@ -15,56 +15,92 @@ import requests
 import numpy as np
 import pandas as pd
 from time import sleep
-from dotenv import load_dotenv
 from datetime import datetime
 from collections import defaultdict
 from gspread.exceptions import APIError
 
 # my packages
-from utils import my_pandas, my_gspread, load_api_tokens
+from utils.env_loader import *
+from utils import my_pandas, my_gspread
+from utils.utils import load_api_tokens
 from utils.my_db_functions import fetch_db_data_into_dict
-from utils.new_adv import get_all_adv_data, processed_adv_data
+from new_adv import get_all_adv_data, processed_adv_data
+
+
+
+# ---- SET UP ----
+
+CREDS_PATH = os.getenv('CREDS_PATH')
+
+METRIC_TO_COL = {
+    "Сумма заказов": "AW",
+    "Кол-во заказов": "BH",
+    "Сумма затрат": "BP",
+    "Цены": "CB",
+    "скидка WB": "CU",
+    "Остатки": "DL",
+    "Прибыль c заказов по ИУ": "DU",
+    "Показы": "ET",
+    "Клики": "FC",
+    "ctr": "FK",
+    "Конверсия в корзину": "FS",
+    "Конверсия в заказ": "GA",
+    "Добавления в корзину": "GI",
+    "Переходы в карточку товара": "GQ",
+    "cpc": "HG",
+    "Рейтинг": "HO",
+    "cpo": "GY",
+    "Акции": "DD",
+    "ЧП-РК": "EC",
+    "ДРР": "EL",
+    "cpm": "HW",
+    "ctr": "FK",
+    "Органика": "IF"
+}
+
+METRIC_RU = {
+    "orders_sum_rub": "Сумма заказов",
+    "orders_count": "Кол-во заказов",
+    "adv_spend": "Сумма затрат",
+    "price_with_disc": "Цены",
+    "spp": "скидка WB",
+    "total_quantity": "Остатки",
+    "profit_by_cond_orders": "Прибыль c заказов по ИУ",
+    "views": "Показы",
+    "clicks": "Клики",
+    "ctr": "ctr",
+    "to_cart_convers": "Конверсия в корзину",
+    "to_orders_convers": "Конверсия в заказ",
+    "add_to_cart_count": "Добавления в корзину",
+    "open_card_count": "Переходы в карточку товара",
+    "cpc": "cpc",
+    "rating": "Рейтинг",
+    "cpo":"cpo",
+    "Акции":"Акции",
+    "ЧП-РК":"ЧП-РК",
+    "ДРР":"ДРР"
+}
+
+
 
 
 # ---- LOGS ----
 
-load_dotenv()
-METRIC_TO_COL = os.getenv('METRIC_TO_COL')
-METRIC_RU = os.getenv('METRIC_RU')
+LOGS_PATH = os.getenv("LOGS_PATH")
 
-SERVER_LOGS = os.getenv("SERVER_LOGS")
-LOCAL_LOGS = os.getenv("LOCAL_LOGS")
-
-if SERVER_LOGS and os.path.exists(SERVER_LOGS):
-    logs_path = SERVER_LOGS
-elif LOCAL_LOGS and os.path.exists(LOCAL_LOGS):
-    logs_path = LOCAL_LOGS
-else:
-    logs_path = None  # <-- Здесь можно вручную указать путь до папки с логами, если нужно
-
-if logs_path:
-    os.makedirs(logs_path, exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(f"{logs_path}/autopilot_hourly.log", encoding='utf-8'),
-            logging.StreamHandler()
-        ]
-    )
-else:
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
-    logging.warning("⚠️ Логи не сохраняются в файл — путь до логов не задан.\nПуть до логов можно указать вручную в скрипт, строчка 36")
-
+os.makedirs(LOGS_PATH, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(f"{LOGS_PATH}/autopilot_hourly.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 
 
 
 # ---- FUNCTIONS ----
-
 
 def get_fun(account: str, api_token: str, nmIDs: list):
     logging.info(f"Начало обработки аккаунта {account}")
@@ -223,7 +259,10 @@ def get_full_prices_from_API_WB(filter_articles = None):
         try: 
             # берём данные из апи
             api_token = tokens[account]
-            data = my_gspread.get_data_offset(url, {"Authorization": api_token}, extract_callback = lambda r: r['data']['listGoods'], return_keys = ['nmID', 'sizes'])
+            data = my_gspread.get_data_offset(url,
+                                              {"Authorization": api_token},
+                                              extract_callback = lambda r: r['data']['listGoods'],
+                                              return_keys = ['nmID', 'sizes'])
             wb_articles_prices = {item['nmID']: item['sizes'][0]['discountedPrice'] for item in data}
 
             # оставляем только позиции из UNIT    
@@ -399,7 +438,8 @@ def get_calc_data(adv_spend, fun_data, fun_headers):
     # сумма заказов
     orders_sum_ind = fun_headers.index('orders_sum_rub') # берём индекс
     orders_sum_dct = {int(article): values[orders_sum_ind] for article, values in fun_data.items()} # собираем заказы в отд словарь
-    profit_data = {article : orders_sum_dct.get(article, 0) * margin_by_article.get(article, 1) for article in set(orders_sum_dct)|set(margin_by_article)} # считаем прибыль
+    # считаем прибыль
+    profit_data = {article : orders_sum_dct.get(article, 0) * margin_by_article.get(article, 1) for article in set(orders_sum_dct)|set(margin_by_article)}
 
     # кол-во заказов
     orders_count_ind = fun_headers.index('orders_count')
@@ -423,63 +463,6 @@ def get_calc_data(adv_spend, fun_data, fun_headers):
         cpo[article] = numerator / denominator if denominator != 0 else 1.0
 
     return profit_data, net_profit, adv_part, cpo
-    
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-# старая функция по рекламной статистике
-def process_full_adv_stat(adv_spend, load_fresh_data = False):
-    '''
-    Показы, клики, ctr, cpo.
-    Использует функцию с асинхронным парсингом.
-    '''
-    if load_fresh_data:
-        adv_full_stat = main()
-    else: 
-        adv_full_stat = pd.read_csv('adv_stat_full_2.csv')
-
-    # ctr to numeric
-    adv_full_stat['ctr'] = adv_full_stat['ctr'].str.replace(',', '.').astype(float) / 100
-
-    # filter and aggregate
-    data_today = adv_full_stat[adv_full_stat['date'] == datetime.now().strftime('%Y-%m-%d')]
-    # data_today = adv_full_stat[adv_full_stat['date'] == '2025-07-14']
-    data_agg = data_today.pivot_table(index = 'nmId', values= ['views', 'clicks', 'ctr'], aggfunc='sum')
-
-
-    # add cpc
-    spend_series = pd.Series(adv_spend)
-    spend_series = spend_series.reindex(data_agg.index, fill_value=0)
-
-    try:
-        # print(data_agg.info())
-        # print(data_agg['clicks'])
-        # print(type(data_agg['clicks'][0]))
-        # print(data_agg['clicks'][0])
-        data_agg['clicks'] = pd.to_numeric(data_agg['clicks'], errors = 'coerce').fillna(0).astype(float)
-    except Exception as e:
-        logging.error(f'Не удалось преобразовать клики в numeric: {e}')
-    has_clicks = data_agg['clicks'] > 0
-    safe_clicks = data_agg['clicks'].replace(0, 1)
-    cpc_values = spend_series / safe_clicks
-    data_agg['cpc'] = np.where(has_clicks, cpc_values, spend_series)
-    data_agg['cpc'] = data_agg['cpc'].fillna(0)
-
-
-    # возвращаем словарь и заголовки
-    res_dict = {}
-    for nmId, row in data_agg.iterrows():
-        res_dict[nmId] = [
-            int(row['clicks']),
-            round(float(row['ctr']), 5),
-            int(row['views']), 
-            round(float(row['cpc']), 5) if not np.isinf(row['cpc']) else float(spend_series.get(nmId, 0))]
-
-    headers = ['clicks', 'ctr', 'views', 'cpc']
-
-    return res_dict, headers
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
 def process_adv_stat_new():
@@ -665,7 +648,8 @@ if __name__ == "__main__":
     #     matched_metrics = json.load(f)
 
     try: 
-
+        
+        r = '''
         # ----- promo, rating, prices, spp, цена с спп -----
         wb_data = get_data_from_WB(articles_sorted)
 
@@ -693,8 +677,8 @@ if __name__ == "__main__":
         ]
         spp_price_col_letter = 'CI'
         
-        with open('wb_data_check_spp.json', "w", encoding="utf-8") as f:
-            json.dump(wb_data, f, ensure_ascii=False, indent=4)
+        # with open('wb_data_check_spp.json', "w", encoding="utf-8") as f:
+        #     json.dump(wb_data, f, ensure_ascii=False, indent=4)
 
         metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
         try:
@@ -702,6 +686,7 @@ if __name__ == "__main__":
             logging.info(f'Данные по Наша цена с СПП за сегодня были успешно добавлены в диапазон {metric_range}.')
         except Exception as e:
             logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
+        '''
 
         # ----- adv spend -----
         adv_spend = load_adv_spend(articles_sorted)
@@ -716,9 +701,6 @@ if __name__ == "__main__":
 
         push_data_static_range(sh = sh, dct = fun_data, metric_names = fun_headers, gsheet_headers = сurr_headers, matched_metrics = METRIC_RU,
                 articles_sorted = articles_sorted, col_num = col_num, values_first_row = values_first_row, sh_len=sh_len)
-        
-        with open('fun_data.json', "w", encoding="utf-8") as f:
-            json.dump(fun_data, f, ensure_ascii=False, indent=4)
 
 
         # ----- calculations -----

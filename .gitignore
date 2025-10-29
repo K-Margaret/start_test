@@ -212,5 +212,6 @@ __marimo__/
 *.log
 logs/
 WBDataUpdateService/
-utils/
-src/utils/
+creds/*
+!creds/.gitkeep
+env_loader.py
