@@ -216,3 +216,5 @@ creds/*
 !creds/.gitkeep
 env_loader.py
 .DS_Store
+data/*
+!data/.gitkeep
