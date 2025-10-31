@@ -248,7 +248,6 @@ def load_last_purch_price(wilds = None):
     return db_data
 
 
-
 if __name__ == "__main__":
     
     # 1. connect to client
@@ -276,12 +275,12 @@ if __name__ == "__main__":
         avg_price = load_avg_purch_price(orders_ids)
         purch_price = load_last_purch_price(orders_ids)
 
-        avg_dict = {d['local_vendor_code']: d['weighted_avg_price_per_item'] for d in avg_price}
+        # avg_dict = {d['local_vendor_code']: d['weighted_avg_price_per_item'] for d in avg_price}
         purch_dict = {d['local_vendor_code']: d['price_per_item'] for d in purch_price}
 
         list_of_ordered_ids = [i[0] for i in orders_sh_wilds_lst]
         result = [
-            [avg_dict.get(wild) or purch_dict.get(wild) or 0]
+            [purch_dict.get(wild, 0)]
             for wild in list_of_ordered_ids
         ]
 
