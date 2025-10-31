@@ -284,7 +284,7 @@ if __name__ == "__main__":
             for wild in list_of_ordered_ids
         ]
 
-        price_col_letter = column_number_to_letter(headers.index('Средняя цена рынок'))
+        price_col_letter = column_number_to_letter(headers.index('Последняя цена рынок'))
         orders_sh.update(result, range_name = f'{price_col_letter}{header_row_num + 1}:{price_col_letter}{orders_sh.row_count}')
         logging.info("Successfully added purchase price to the sheet 'Заказы'")
         
