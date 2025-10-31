@@ -56,7 +56,7 @@ METRIC_TO_COL = {
     "cpm": "HW",
     "ctr": "FK",
     "Органика": "IF",
-    "Остаток факт склад": "DS"
+    "Свободный остаток": "DS"
 }
 
 METRIC_RU = {
@@ -620,10 +620,12 @@ def load_unit_remains(unit_sh = None):
 
     # 1. take remains data from unit
     skus = unit_sh.col_values(1)
-    remains = unit_sh.col_values(29)
+    remains = unit_sh.col_values(51)
 
-    if remains[0] != 'Остаток ФАКТ СКЛАД':
-        logging.error(f'''Проблема с выгрузкой остатков из юнит в ПУ: ожидаемое название колонки - Остаток ФАКТ СКЛАД - не
+    expected_col = 'Свободный остаток\n(сервис)'
+
+    if remains[0] != expected_col:
+        logging.error(f'''Проблема с выгрузкой остатков из юнит в ПУ: ожидаемое название колонки - {expected_col} - не
                       совпадает с фактическим - {remains[0]}''')
         raise ValueError
     
@@ -679,7 +681,7 @@ if __name__ == "__main__":
             pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
             output_data = [[value] for key, value in pilot_remains.items()]
 
-            col_letter = METRIC_TO_COL["Остаток факт склад"]
+            col_letter = METRIC_TO_COL["Свободный остаток"]
             output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
             my_gspread.add_data_to_range(sh, output_data, output_range)
             logging.info('Остатки склада успешно загружены в ПУ')
