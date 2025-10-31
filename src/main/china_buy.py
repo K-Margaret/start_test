@@ -184,7 +184,7 @@ def load_unique_wilds_from_china(sh):
     names = sh.col_values(headers.index('Модель') + 1)[headers_num:]
     country = sh.col_values(headers.index('Страна') + 1)[headers_num:]
     # dct = [{'wild': w, 'name': n} for w, n, c in zip(wilds, names, country) if str(c).capitalize() == 'К']
-    dct = {w : n for w, n, c in zip(wilds, names, country) if str(c).capitalize() == 'К'}
+    dct = {w : n for w, n, c in zip(wilds, names, country) if str(c).upper() in ['К', 'КК']}
     return dct
 
 
