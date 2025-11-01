@@ -714,9 +714,6 @@ if __name__ == "__main__":
             for i in articles_sorted
         ]
         spp_price_col_letter = 'CI'
-        
-        # with open('wb_data_check_spp.json', "w", encoding="utf-8") as f:
-        #     json.dump(wb_data, f, ensure_ascii=False, indent=4)
 
         metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
         try:
