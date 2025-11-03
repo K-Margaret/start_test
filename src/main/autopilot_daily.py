@@ -426,6 +426,61 @@ def load_vendor_codes_info(filter_skus = None):
     data = db.fetch_db_data_into_dict(query)
 
     return {i['nm_id']:i['local_vendor_code'] for i in data}
+
+
+def load_avg_position_curr(articles_sorted = None):
+    '''
+    Description:
+        Loads data for the previous 6 days from the avg_position DB table
+
+    Arguments:
+        articles_sorted: if given, the data is filtered and sorted accordingly
+
+    Returns:
+        df
+    '''
+    res = db.get_df_from_db('''
+                         select
+                            nmid,
+                            avgposition,
+                            report_date
+                         from avg_position
+                         where report_date >= CURRENT_DATE - INTERVAL '6 days'
+                         ''')
+    res['nmid'] = res['nmid'].astype(int)
+    pivot = res.pivot(index='nmid', columns='report_date', values='avgposition').fillna('')
+
+    if articles_sorted is not None:
+        pivot = pivot.reset_index().set_index('nmid').reindex(articles_sorted).fillna('')
+    
+    return pivot
+
+
+def load_avg_position_hist(articles_sorted = None):
+    '''
+    Description:
+        Loads data for the previous week from the avg_position DB table 
+
+    Arguments:
+        articles_sorted: if given, the data is filtered and sorted accordingly
+
+    Returns:
+        dict {nm_id : avg_price}
+    '''
+    hist = db.fetch_db_data_into_dict('''
+                                   SELECT
+                                    nmid,
+                                    ROUND(AVG(avgposition), 3) AS avg_position_prior
+                                   FROM avg_position
+                                   WHERE report_date < CURRENT_DATE - INTERVAL '6 days'
+                                   GROUP BY nmid;
+                                ''')
+    hist = {i['nmid'] : i['avg_position_prior'] for i in hist}
+
+    if articles_sorted is not None: 
+        hist = my_pandas.order_dict_by_list(hist, articles_sorted)
+    
+    return hist
     
 
 if __name__ == "__main__":
@@ -459,57 +514,73 @@ if __name__ == "__main__":
     articles_sorted = [int(i) for i in sos_page.col_values(1)]
 
 
-    # ----- 3. обработка данных -----
+    # # ----- 3. обработка данных -----
 
-    push_data_static_range(curr_data, curr_headers, col_num, articles_sorted, values_first_row, sh_len, pivot = True)
-    logging.info('Данные за последнюю неделю успешно добавлены.\n')
+    # push_data_static_range(curr_data, curr_headers, col_num, articles_sorted, values_first_row, sh_len, pivot = True)
+    # logging.info('Данные за последнюю неделю успешно добавлены.\n')
 
-    push_data_static_range(hist_data, hist_headers, 1, articles_sorted, values_first_row, sh_len, pivot = False)
-    logging.info('Более ранние данные успешно добавлены.\n')
+    # push_data_static_range(hist_data, hist_headers, 1, articles_sorted, values_first_row, sh_len, pivot = False)
+    # logging.info('Более ранние данные успешно добавлены.\n')
 
 
     # подумала, что внедрять на постоянной основе опасно, но пускай будет запасной метод быстрого обновления артикуловы
-    # # ----- 4. обновление vendorcodes -----
+    # # ----- обновление vendorcodes -----
 
     # latest_vendorcodes = load_vendor_codes_info()
     
     # sorted_vendorcodes = [[latest_vendorcodes.get(i, '')] for i in articles_sorted]
     # sh.update(values = sorted_vendorcodes, range_name = f'D4:D{4+len(sorted_vendorcodes)}')
 
-    # ----- 5. юнит -----
+    # ----- 4. средняя позиция -----
+
+    # последняя неделя
+    avg_curr = load_avg_position_curr(articles_sorted)
+    output_range = f'IQ4:IV{sh_len}'
+    my_gspread.add_data_to_range(sh, avg_curr, output_range)
+
+    # предпоследняя неделя
+    avg_hist = load_avg_position_hist(articles_sorted)
+    hist_output = [[value] for key, value in avg_hist.items()]
+    hist_range = f'IP4:IP{sh_len}'
+    my_gspread.add_data_to_range(sh, hist_output, hist_range)
+
+    logging.info('Данные по средним позициям выгружены')
 
 
-    # 5.1. обновление статуса рекламы
+    # # ----- 5. юнит -----
 
-    logging.info('Updating the adv_status in Unit')
 
-    # take yesterday's adv spend data {sku: 'реклама', sku1: ''}
-    df_cut_adv_status = curr_data[curr_data['date'] == max(curr_data['date'])][['date', 'article_id', 'Сумма затрат']]
+    # # 5.1. обновление статуса рекламы
 
-    # convert to dict
-    autopilot_adv_status = df_cut_adv_status[['article_id', 'Сумма затрат']].set_index('article_id').to_dict()['Сумма затрат']
+    # logging.info('Updating the adv_status in Unit')
 
-    # adv aspend --> adv status
-    autopilot_adv_status = {int(key): 'реклама' if value > 0 else '' for key, value in autopilot_adv_status.items()}
+    # # take yesterday's adv spend data {sku: 'реклама', sku1: ''}
+    # df_cut_adv_status = curr_data[curr_data['date'] == max(curr_data['date'])][['date', 'article_id', 'Сумма затрат']]
 
-    # connect to unit
-    unit_sh = my_gspread.connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
-    # unit_sh = my_gspread.connect_to_local_sheet('https://docs.google.com/spreadsheets/d/1Cpxi7HbND5JuDz18FzDcm6Kdx5Ks8THf80cWt4hwFtc/edit?gid=1686563401#gid=1686563401',
-    #                                             'MAIN (tested)')
+    # # convert to dict
+    # autopilot_adv_status = df_cut_adv_status[['article_id', 'Сумма затрат']].set_index('article_id').to_dict()['Сумма затрат']
+
+    # # adv aspend --> adv status
+    # autopilot_adv_status = {int(key): 'реклама' if value > 0 else '' for key, value in autopilot_adv_status.items()}
+
+    # # connect to unit
+    # unit_sh = my_gspread.connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
+    # # unit_sh = my_gspread.connect_to_local_sheet('https://docs.google.com/spreadsheets/d/1Cpxi7HbND5JuDz18FzDcm6Kdx5Ks8THf80cWt4hwFtc/edit?gid=1686563401#gid=1686563401',
+    # #                                             'MAIN (tested)')
     
-    unit_skus = my_gspread.get_skus_unit(unit_sh)
+    # unit_skus = my_gspread.get_skus_unit(unit_sh)
     
-    # добавляем удалённые товары
-    new_adv_status_sorted = process_adv_status(unit_sh, autopilot_adv_status, unit_skus)
+    # # добавляем удалённые товары
+    # new_adv_status_sorted = process_adv_status(unit_sh, autopilot_adv_status, unit_skus)
     
-    # отправляем данные в gs
-    update_adv_status_in_unit(unit_sh, new_adv_status_sorted)
+    # # отправляем данные в gs
+    # update_adv_status_in_unit(unit_sh, new_adv_status_sorted)
 
 
-    # 5.2. обновление отзывов
+    # # 5.2. обновление отзывов
 
-    logging.info('Updating the feedbacks in Unit')
+    # logging.info('Updating the feedbacks in Unit')
 
-    load_and_update_feedbacks_unit(unit_sh, unit_skus)
+    # load_and_update_feedbacks_unit(unit_sh, unit_skus)
 
-    logging.info('Выполнение скрипта завершено')
+    # logging.info('Выполнение скрипта завершено')
