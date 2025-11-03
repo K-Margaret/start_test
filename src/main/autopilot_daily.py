@@ -504,8 +504,8 @@ if __name__ == "__main__":
 
     # ----- 2. берём данные из гугл таблицы -----
 
-    sh = my_gspread.connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), AUTOPILOT_SHEET_NAME)
-    # sh = my_gspread.connect_to_remote_sheet(AUTOPILOT_TABLE_NAME, AUTOPILOT_SHEET_NAME)
+    # sh = my_gspread.connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), AUTOPILOT_SHEET_NAME)
+    sh = my_gspread.connect_to_remote_sheet(AUTOPILOT_TABLE_NAME, AUTOPILOT_SHEET_NAME)
     
     # сколько нужно выделить колонок под каждую метрику (по кол-ву дней)
     col_num = 6
