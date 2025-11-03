@@ -94,7 +94,16 @@ def load_data(rename = True):
         -- все метрики
         {', '.join(['date', 'article_id', 'subject_name', 'account', 'local_vendor_code', 'promo_title'] + metric_selects)},
         (profit_by_cond_orders - adv_spend) AS ЧП_РК,
-        
+
+        -- CPM
+        CASE 
+            WHEN views = 0 THEN 0 
+            ELSE ROUND(adv_spend / views * 1000, 2)
+        END AS cpm,
+
+        -- Органика
+        (open_card_count - clicks) AS Органика,
+
         -- ДРР
         CASE 
             WHEN orders_sum_rub = 0 THEN 1
@@ -122,6 +131,9 @@ def load_data(rename = True):
                 article_id,
                 {select_avg},
                 (ROUND(avg(profit_by_cond_orders), 2) - ROUND(avg(adv_spend),2)) AS "ЧП-РК за 7 дней",
+                ROUND(AVG(adv_spend - views), 2) AS "Ср. cpm",
+                ROUND(AVG(open_card_count - clicks), 2) AS "Ср. Органика",
+                
                 -- ДРР (ROAS)
                 CASE 
                     WHEN SUM(orders_sum_rub) = 0 THEN 1
@@ -344,7 +356,9 @@ def push_data_static_range(df, headers, col_num, articles_sorted, values_first_r
         "Медианная цена 30 дней": "CA",
         'ЧП-РК за 7 дней': "ED",
         'Ср. \ncpo': "HA",
-        'ДРР факт за 7 дней' : "EM"
+        'ДРР факт за 7 дней' : "EM",
+        "Ср. cpm" : "HY",
+        "Ср. Органика" : "IH"
     }
 
     cols = list(df.columns)
@@ -523,13 +537,14 @@ if __name__ == "__main__":
     logging.info('Более ранние данные успешно добавлены.\n')
 
 
-    # подумала, что внедрять на постоянной основе опасно, но пускай будет запасной метод быстрого обновления артикуловы
-    # ----- обновление vendorcodes -----
+    # # подумала, что внедрять на постоянной основе опасно, но пускай будет запасной метод быстрого обновления артикуловы
+    # # ----- обновление vendorcodes -----
 
-    latest_vendorcodes = load_vendor_codes_info()
+    # latest_vendorcodes = load_vendor_codes_info()
     
-    sorted_vendorcodes = [[latest_vendorcodes.get(i, '')] for i in articles_sorted]
-    sh.update(values = sorted_vendorcodes, range_name = f'D4:D{4+len(sorted_vendorcodes)}')
+    # sorted_vendorcodes = [[latest_vendorcodes.get(i, '')] for i in articles_sorted]
+    # sh.update(values = sorted_vendorcodes, range_name = f'D4:D{4+len(sorted_vendorcodes)}')
+
 
     # ----- 4. средняя позиция -----
 
