@@ -504,8 +504,8 @@ if __name__ == "__main__":
 
     # ----- 2. берём данные из гугл таблицы -----
 
-    # sh = my_gspread.connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), AUTOPILOT_SHEET_NAME)
-    sh = my_gspread.connect_to_remote_sheet(AUTOPILOT_TABLE_NAME, AUTOPILOT_SHEET_NAME)
+    sh = my_gspread.connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), AUTOPILOT_SHEET_NAME)
+    # sh = my_gspread.connect_to_remote_sheet(AUTOPILOT_TABLE_NAME, AUTOPILOT_SHEET_NAME)
     
     # сколько нужно выделить колонок под каждую метрику (по кол-ву дней)
     col_num = 6
@@ -565,37 +565,37 @@ if __name__ == "__main__":
     # ----- 5. юнит -----
 
 
-    # 5.1. обновление статуса рекламы
+    # # 5.1. обновление статуса рекламы
 
-    logging.info('Updating the adv_status in Unit')
+    # logging.info('Updating the adv_status in Unit')
 
-    # take yesterday's adv spend data {sku: 'реклама', sku1: ''}
-    df_cut_adv_status = curr_data[curr_data['date'] == max(curr_data['date'])][['date', 'article_id', 'Сумма затрат']]
+    # # take yesterday's adv spend data {sku: 'реклама', sku1: ''}
+    # df_cut_adv_status = curr_data[curr_data['date'] == max(curr_data['date'])][['date', 'article_id', 'Сумма затрат']]
 
-    # convert to dict
-    autopilot_adv_status = df_cut_adv_status[['article_id', 'Сумма затрат']].set_index('article_id').to_dict()['Сумма затрат']
+    # # convert to dict
+    # autopilot_adv_status = df_cut_adv_status[['article_id', 'Сумма затрат']].set_index('article_id').to_dict()['Сумма затрат']
 
-    # adv aspend --> adv status
-    autopilot_adv_status = {int(key): 'реклама' if value > 0 else '' for key, value in autopilot_adv_status.items()}
+    # # adv aspend --> adv status
+    # autopilot_adv_status = {int(key): 'реклама' if value > 0 else '' for key, value in autopilot_adv_status.items()}
 
-    # connect to unit
-    unit_sh = my_gspread.connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
+    # # connect to unit
+    # # unit_sh = my_gspread.connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
     # unit_sh = my_gspread.connect_to_local_sheet('https://docs.google.com/spreadsheets/d/1Cpxi7HbND5JuDz18FzDcm6Kdx5Ks8THf80cWt4hwFtc/edit?gid=1686563401#gid=1686563401',
     #                                             'MAIN (tested)')
     
-    unit_skus = my_gspread.get_skus_unit(unit_sh)
+    # unit_skus = my_gspread.get_skus_unit(unit_sh)
     
-    # добавляем удалённые товары
-    new_adv_status_sorted = process_adv_status(unit_sh, autopilot_adv_status, unit_skus)
+    # # добавляем удалённые товары
+    # new_adv_status_sorted = process_adv_status(unit_sh, autopilot_adv_status, unit_skus)
     
-    # отправляем данные в gs
-    update_adv_status_in_unit(unit_sh, new_adv_status_sorted)
+    # # отправляем данные в gs
+    # update_adv_status_in_unit(unit_sh, new_adv_status_sorted)
 
 
-    # 5.2. обновление отзывов
+    # # 5.2. обновление отзывов
 
-    logging.info('Updating the feedbacks in Unit')
+    # logging.info('Updating the feedbacks in Unit')
 
-    load_and_update_feedbacks_unit(unit_sh, unit_skus)
+    # load_and_update_feedbacks_unit(unit_sh, unit_skus)
 
-    logging.info('Выполнение скрипта завершено')
+    # logging.info('Выполнение скрипта завершено')
