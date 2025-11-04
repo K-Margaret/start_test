@@ -756,36 +756,41 @@ if __name__ == "__main__":
         except Exception as e:
             logging.erorr(f"Ошибка при попытке внесения изменений СПП цены: {e}")
 
-        # выгружаем promo, rating, prices, spp
-        for metric_ru, metric_en in [['Акции', 'promo_status'],
-                                     ['Рейтинг', 'rating'],
-                                     ['Цены', 'full_price'],
-                                     ['скидка WB', 'spp']]:
-            metric_data = [[wb_data[i][metric_en]] for i in articles_sorted]
-            range_start = METRIC_TO_COL[metric_ru]
-            range_end = my_gspread.calculate_range_end(range_start, col_num)
-            metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
-
-            try:
-                my_gspread.add_data_to_range(sh, metric_data, metric_range, clean_range=False)
-                logging.info(f'Данные по {metric_ru} за сегодня были успешно добавлены в диапазон {metric_range}.')
-            except Exception as e:
-                logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
-                continue
-
-        # выгружаем цену с спп
-        spp_price = [
-            [wb_data[i].get('discounted_price', '')] if i in wb_data else ['']
-            for i in articles_sorted
-        ]
-        spp_price_col_letter = 'CI'
-
-        metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
         try:
+            # выгружаем promo, rating, prices, spp
+            for metric_ru, metric_en in [['Акции', 'promo_status'],
+                                        ['Рейтинг', 'rating'],
+                                        ['Цены', 'full_price'],
+                                        ['скидка WB', 'spp']]:
+                metric_data = [[wb_data[i][metric_en]] for i in articles_sorted]
+                range_start = METRIC_TO_COL[metric_ru]
+                range_end = my_gspread.calculate_range_end(range_start, col_num)
+                metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
+
+                try:
+                    my_gspread.add_data_to_range(sh, metric_data, metric_range, clean_range=False)
+                    logging.info(f'Данные по {metric_ru} за сегодня были успешно добавлены в диапазон {metric_range}.')
+                except Exception as e:
+                    logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
+                    continue
+        except Exception as e:
+            logging.error(f"Ошибка при выгрузке {metric_ru}: {e}")
+
+        try:
+            
+            # выгружаем цену с спп
+            spp_price = [
+                [wb_data[i].get('discounted_price', '')] if i in wb_data else ['']
+                for i in articles_sorted
+            ]
+            spp_price_col_letter = 'CI'
+
+            metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
             my_gspread.add_data_to_range(sh, spp_price, metric_range, clean_range=False)
             logging.info(f'Данные по Наша цена с СПП за сегодня были успешно добавлены в диапазон {metric_range}.')
+        
         except Exception as e:
-            logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
+            logging.error(f"Ошибка при выгрузке Цены с СПП: {e}")
 
 
         # ----- adv spend -----
