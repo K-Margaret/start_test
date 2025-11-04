@@ -18,12 +18,13 @@ from time import sleep
 from datetime import datetime
 from collections import defaultdict
 from gspread.exceptions import APIError
+from psycopg2.extras import execute_values
 
 # my packages
 from utils.env_loader import *
 from utils import my_pandas, my_gspread
 from utils.utils import load_api_tokens
-from utils.my_db_functions import fetch_db_data_into_dict
+from utils.my_db_functions import fetch_db_data_into_dict, create_connection_w_env
 
 from new_adv import get_all_adv_data, processed_adv_data
 
@@ -406,7 +407,7 @@ def get_data_from_WB(articles = None):
 
         # считаем spp
         if full_price and discounted_price:
-            spp = (full_price - discounted_price) / full_price * 100
+            spp = round((full_price - discounted_price) / full_price * 100, 1)
         else:
             spp = ''
         
@@ -639,6 +640,62 @@ def load_unit_remains(unit_sh = None):
     return unit_remains
 
 
+def insert_spp_data_to_db(connection, wb_data):
+
+    '''
+    Функция insert_spp_data_to_db вставляет данные о ценах и скидках товаров в таблицу spp_history.
+    - Пропускает вставку, если данные за текущий час уже существуют.
+    - Получает последние значения цен из базы для каждого товара.
+    - Добавляет только новые записи или записи с изменившейся ценой.
+    - Игнорирует товары с отсутствующими или некорректными значениями (нечисловыми).
+    ''' 
+
+    # I.
+    # ПУ обновляется раз в полчаса, записывать данные нужно раз в час
+    # --> проверяем, были ли записи в этом часу
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT 1
+            FROM spp_history
+            WHERE date(created_at) = current_date
+                AND date_part('hour', created_at) = date_part('hour', NOW())
+            LIMIT 1;
+        """)
+        if cursor.fetchone():
+            logging.info("Найдено обновление цены за последний час. Изменения не внесены в spp_history")
+            return
+    
+        # II. Берем последние данные для каждого артикула из БД
+        cursor.execute("""
+            SELECT DISTINCT ON (nm_id) nm_id, full_price, spp_price
+            FROM spp_history
+            ORDER BY nm_id, created_at DESC;
+        """)
+        last_data = {row[0]: {'full_price': row[1], 'spp_price': row[2]} for row in cursor.fetchall()}
+
+        # III. Добавляем данные, только если есть изменения в цене
+        records = []
+        for nm_id, info in wb_data.items():
+            try:
+                full_price = float(info.get('full_price'))
+                spp_price = float(info.get('discounted_price'))
+                spp_percent = float(info.get('spp'))
+            except (TypeError, ValueError):
+                continue
+
+            prev_data = last_data.get(nm_id, {})
+            if not prev_data or full_price != prev_data.get('full_price') or spp_price != prev_data.get('spp_price'):
+                records.append((nm_id, full_price, spp_percent, spp_price))
+
+        if records:
+            execute_values(cursor, """
+                    INSERT INTO spp_history (nm_id, full_price, spp_percent, spp_price)
+                    VALUES %s;
+                """, records)
+            connection.commit()
+            logging.info("Найдены изменения в цене СПП. Изменения записаны в БД")
+
+
 if __name__ == "__main__":
 
     pilot_table_name = os.getenv('AUTOPILOT_TABLE_NAME')
@@ -654,15 +711,15 @@ if __name__ == "__main__":
     col_num = 7
     values_first_row = 4
     sh_len = sh.row_count
-    sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME'))
-    articles_sorted = [int(i) for i in sos_page.col_values(1)]
+    # sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME'))
+    # articles_sorted = [int(i) for i in sos_page.col_values(1)]
 
     # for tests
     # articles_raw = sh.col_values(1)[3:]
     # articles_sorted = [int(n) for n in articles_raw]
 
     # tiny list of articles for test
-    # articles_sorted = [577506829, 238875938, 155430993] # [absent_from_website, no_stock, active]
+    articles_sorted = [577506829, 238875938, 155430993] # [absent_from_website, no_stock, active]
 
 
     # берём метрики (рус и англ) из файла
@@ -690,6 +747,14 @@ if __name__ == "__main__":
 
         # ----- promo, rating, prices, spp, цена с спп -----
         wb_data = get_data_from_WB(articles_sorted)
+
+        # update spp price in db
+        try:
+            connection = create_connection_w_env()
+            insert_spp_data_to_db(connection, wb_data)
+            connection.close()
+        except Exception as e:
+            logging.erorr(f"Ошибка при попытке внесения изменений СПП цены: {e}")
 
         # выгружаем promo, rating, prices, spp
         for metric_ru, metric_en in [['Акции', 'promo_status'],
@@ -747,7 +812,7 @@ if __name__ == "__main__":
                     articles_sorted = articles_sorted, col_num = col_num, values_first_row = values_first_row, sh_len=sh_len)
             
         
-        # ----- NEW --- клики, ctr, cpc, cpm --- NEW -----
+        # ----- клики, ctr, cpc, cpm -----
         adv_data = process_adv_stat_new()
         adv_by_sku = {item['article_id']: {k: v for k, v in item.items() if k != 'article_id'}
                       for item in adv_data
