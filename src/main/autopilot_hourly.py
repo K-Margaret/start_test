@@ -711,15 +711,15 @@ if __name__ == "__main__":
     col_num = 7
     values_first_row = 4
     sh_len = sh.row_count
-    # sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME'))
-    # articles_sorted = [int(i) for i in sos_page.col_values(1)]
+    sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME'))
+    articles_sorted = [int(i) for i in sos_page.col_values(1)]
 
     # for tests
     # articles_raw = sh.col_values(1)[3:]
     # articles_sorted = [int(n) for n in articles_raw]
 
     # tiny list of articles for test
-    articles_sorted = [577506829, 238875938, 155430993] # [absent_from_website, no_stock, active]
+    # articles_sorted = [577506829, 238875938, 155430993] # [absent_from_website, no_stock, active]
 
 
     # берём метрики (рус и англ) из файла
@@ -777,7 +777,7 @@ if __name__ == "__main__":
             logging.error(f"Ошибка при выгрузке {metric_ru}: {e}")
 
         try:
-            
+
             # выгружаем цену с спп
             spp_price = [
                 [wb_data[i].get('discounted_price', '')] if i in wb_data else ['']
