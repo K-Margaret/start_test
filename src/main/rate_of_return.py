@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import logging
 import requests
 import pandas as pd
+from datetime import datetime
 
 # my packages
 from utils.env_loader import *
@@ -126,3 +127,9 @@ if __name__ == "__main__":
         print("Response text:", response.text)
     except Exception as e:
         print(f"Request failed: {e}")
+    
+    current_time = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+    sh.update(
+        values=[[f'Актуализировано на {current_time}']],
+        range_name='A1'
+    )
