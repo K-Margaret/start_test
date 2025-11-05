@@ -130,6 +130,6 @@ if __name__ == "__main__":
     
     current_time = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
     sh.update(
-        values=[[f'Актуализировано на {current_time}']],
+        values=[[f'Обновлено {current_time}']],
         range_name='A1'
     )
