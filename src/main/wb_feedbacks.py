@@ -217,9 +217,7 @@ def insert_feedbacks_into_db(connection, feedbacks: list):
         logging.error(f"Ошибка при вставке в базу: {e}")
         connection.rollback()
 
-
-if __name__ == "__main__":
-
+def upload_all_data():
     tokens = load_api_tokens()
     conn = create_connection_w_env()
     take = 5000  # batch size
@@ -249,3 +247,6 @@ if __name__ == "__main__":
 
         except Exception as e:
             logging.error(f"Ошибка при обработке клиента {client} на offset {skip}: {e}")
+
+if __name__ == "__main__":
+    upload_all_data()
