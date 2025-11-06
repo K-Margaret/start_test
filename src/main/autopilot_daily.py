@@ -399,8 +399,8 @@ def push_data_static_range(df, headers, col_num, articles_sorted, values_first_r
                 # Format range: StartColRow:EndColRow
                 metric_range = f'{range_start}{values_first_row}:{range_end}{sh_len + 1}'
 
-                # Push data (assumes my_gspread.add_data_to_range is available)
-                my_gspread.add_data_to_range(sh, temp_df, metric_range)
+                # Push data (assumes my_gspread.add_data_to_range iss available)
+                my_gspread.add_data_to_range(sh, temp_df, metric_range, clean_range=False)
                 logging.info(f'Данные по "{metric}" успешно добавлены в диапазон {metric_range}')
                 break
                 
