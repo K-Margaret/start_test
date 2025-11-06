@@ -581,9 +581,9 @@ if __name__ == "__main__":
     autopilot_adv_status = {int(key): 'реклама' if value > 0 else '' for key, value in autopilot_adv_status.items()}
 
     # connect to unit
-    # unit_sh = my_gspread.connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
-    unit_sh = my_gspread.connect_to_local_sheet('https://docs.google.com/spreadsheets/d/1Cpxi7HbND5JuDz18FzDcm6Kdx5Ks8THf80cWt4hwFtc/edit?gid=1686563401#gid=1686563401',
-                                                'MAIN (tested)')
+    unit_sh = my_gspread.connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
+    # unit_sh = my_gspread.connect_to_local_sheet('https://docs.google.com/spreadsheets/d/1Cpxi7HbND5JuDz18FzDcm6Kdx5Ks8THf80cWt4hwFtc/edit?gid=1686563401#gid=1686563401',
+    #                                             'MAIN (tested)')
     
     unit_skus = my_gspread.get_skus_unit(unit_sh)
     
