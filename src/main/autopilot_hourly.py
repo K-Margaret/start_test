@@ -57,7 +57,8 @@ METRIC_TO_COL = {
     "cpm": "HZ",
     "ctr": "FN",
     "Органика": "II",
-    "Свободный остаток": "DU"
+    "Свободный остаток": "DU",
+    "Наша цена с СПП":"CK"
 }
 
 METRIC_RU = {
@@ -783,7 +784,7 @@ if __name__ == "__main__":
                 [wb_data[i].get('discounted_price', '')] if i in wb_data else ['']
                 for i in articles_sorted
             ]
-            spp_price_col_letter = 'CI'
+            spp_price_col_letter = METRIC_TO_COL["Наша цена с СПП"]
 
             metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
             my_gspread.add_data_to_range(sh, spp_price, metric_range, clean_range=False)
