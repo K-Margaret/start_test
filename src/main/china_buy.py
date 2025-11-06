@@ -15,7 +15,7 @@ import os
 # my packages
 from utils.env_loader import *
 from utils.my_db_functions import create_connection_w_env, fetch_db_data_into_dict, list_to_sql_select
-from utils.my_gspread import column_number_to_letter, add_data_to_range, clean_number
+from utils.my_gspread import column_number_to_letter, add_data_to_range, clean_number, connect_to_local_sheet
 from utils.my_general import open_json
 
 
@@ -176,7 +176,7 @@ def load_sopost_prices(client = None, wilds = None):
 def load_unique_wilds_from_china(sh):
     '''
     Returns:
-        a list of dicts with unique wilds and their names if they have flag 'K' in the column 'Страна' in the given sheet 
+        a list of dicts with unique wilds and their names if they have flag 'K' or 'KK' in the column 'Страна' in the given sheet 
     '''
     headers_num = sh.col_values(1).index('Фото') + 1
     headers = sh.row_values(headers_num)
@@ -253,7 +253,8 @@ if __name__ == "__main__":
     # 1. connect to client
     try:
         client = gspread.service_account(filename=CREDS_PATH)
-        table = client.open(CHINA_TABLE)
+        table = client.open(CHINA_TABLE) # prod
+
         logging.info(f"Connected to the table {CHINA_TABLE}")
     except Exception as e:
         logging.error(f"Failed to connect to the table '{CHINA_TABLE}:\n{e}")
@@ -267,15 +268,12 @@ if __name__ == "__main__":
         wilds_raw = orders_sh.col_values(headers.index('wild') + 1)[header_row_num:]
         names_raw = orders_sh.col_values(headers.index('Модель') + 1)[header_row_num:]
 
-        # orders_sh_wilds_lst = [[w, n] for w, n in zip(wilds_raw, names_raw) if w]  
         orders_sh_wilds_lst = [[w, n] for w, n in zip(wilds_raw, names_raw)] # 23.10: вкл пустые строки для выгрузки в гугл
 
         orders_sh_wilds = {i[0]:i[1] for i in orders_sh_wilds_lst if i[0]} # 23.10: убираем пустые строки для запроса в бд
         orders_ids = list(orders_sh_wilds.keys())
-        avg_price = load_avg_purch_price(orders_ids)
         purch_price = load_last_purch_price(orders_ids)
 
-        # avg_dict = {d['local_vendor_code']: d['weighted_avg_price_per_item'] for d in avg_price}
         purch_dict = {d['local_vendor_code']: d['price_per_item'] for d in purch_price}
 
         list_of_ordered_ids = [i[0] for i in orders_sh_wilds_lst]
@@ -295,7 +293,10 @@ if __name__ == "__main__":
     # 3. выгружаем данные в CHINA_COUNT
     try:
         logging.info(f"Started processing sheet {CHINA_COUNT}")
-        sh = table.worksheet(CHINA_COUNT)
+
+        # sh = connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), CHINA_COUNT) # test
+
+        sh = table.worksheet(CHINA_COUNT) # prod
         first_col_values = sh.col_values(1)
         header_row_num = first_col_values.index('Фото') + 1
         headers = sh.row_values(header_row_num) # нужны только для расчёта range
@@ -304,8 +305,8 @@ if __name__ == "__main__":
         # ---- new part: get wilds from three tables ----
 
         # Добавляем данные из Расчёта закупки
-        kostya_client = gspread.service_account(filename=PRO_CREDS_PATH)
-        purch_table = kostya_client.open(PURCHASE_TABLE)
+        pro_client = gspread.service_account(filename=PRO_CREDS_PATH)
+        purch_table = pro_client.open(PURCHASE_TABLE)
         market_res = load_unique_wilds_from_china(purch_table.worksheet('Рынок_сервис'))
         xiamoi_res = load_unique_wilds_from_china(purch_table.worksheet('Ксиоми_сервис'))
         logging.info('Retrieved wilds from three gs tables')
@@ -336,6 +337,14 @@ if __name__ == "__main__":
         data = full_df.to_dict('records')
 
         # ---- end of the new part: get wilds from three tables ----
+
+
+        # ---- 6.11 - move cells of the final order ----
+        # достаем текущие данные {wild : итоговый заказ}
+        fin_order_wilds = sh.col_values(headers.index('Артикул') + 1)
+        fin_order_data = sh.col_values(headers.index('Итоговый заказ') + 1)
+        fin_order_dct = {w : o for w, o in zip(fin_order_wilds, fin_order_data)}
+
 
         metrics = {
             'local_vendor_code': {
@@ -376,11 +385,17 @@ if __name__ == "__main__":
                 output_data = [[i[metric_name]] for i in data]
                 end_row = header_row_num + len(output_data)
                 output_range = f'{metric_data["col_letter"]}{header_row_num + 1}:{metric_data["col_letter"]}{end_row}'
-                # print(f'adding data data for {metric_name} to range {output_range}: {output_data[:10]}')
                 add_data_to_range(sh, output_data, output_range, clean_range=True)
                 logging.info(f"Successfully added {metric_data['metric_ru']} to the range {output_range}, sheet {CHINA_ORDERS}")
             except Exception as e:
                 logging.error(f"Failed to add {metric_data['metric_ru']} to the range {output_range}, sheet {CHINA_ORDERS}:\n{e}")
+
+        # --- 6.11 fin order insert ---
+        output_wilds = [i['local_vendor_code'] for i in data]
+        fin_order_output = [[fin_order_dct.get(i, '')] for i in output_wilds]
+        fin_order_col_letter = column_number_to_letter(headers.index('Итоговый заказ'))
+        sh.update(values = fin_order_output, range_name=f"{fin_order_col_letter}{header_row_num + 1}:{fin_order_col_letter}{end_row}")
+        logging.info(f"Successfully added final order to the sheet {CHINA_ORDERS}")
 
         sh.update([[f'Актуализировано на {datetime.now().strftime("%d.%m.%Y %H:%M")}']], range_name = 'A2')
     
