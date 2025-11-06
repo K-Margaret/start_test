@@ -72,7 +72,7 @@ def get_wb_feedbacks(api_token: str, nm_id: int | None = None, is_answered: bool
             break
 
         if skip == 0:
-            logging.info(f'Найдена информация о {js['data']['countArchive']} отзывах')
+            logging.info(f"Найдена информация о {js['data']['countArchive']} отзывах")
 
         all_feedbacks.extend(feedbacks)
         skip += take
