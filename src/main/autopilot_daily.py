@@ -54,6 +54,62 @@ METRICS_RU = {
     "rating": "Рейтинг"
 }
 
+METRIC_TO_COL = {
+    # Основные метрики
+    "Сумма заказов": "AX",
+    "Кол-во заказов": "BI",
+    "Сумма затрат": "BQ",
+    "Цены": "CD",
+    "скидка WB": "CW",
+    "Остатки": "DN",
+    "Прибыль c заказов по ИУ": "DW",
+    "Показы": "EW",
+    "Клики": "FF",
+    "ctr": "FN",
+    "Конверсия в корзину": "FV",
+    "Конверсия в заказ": "GD",
+    "Добавления в корзину": "GL",
+    "Переходы в карточку товара": "GT",
+    "cpc": "HJ",
+    "Рейтинг": "HR",
+    "cpo": "HB",
+    "Акции": "DF",
+    "ЧП-РК": "EE",
+    "ДРР": "EN",
+    "cpm": "HZ",
+    "ctr": "FN",
+    "Органика": "II",
+    "Свободный остаток": "DU",
+    "wild" : "D",
+    "account":"C",
+
+    # Исторические (средние) метрики
+    "ср. заказы за прошлые 7 дней": "AW",
+    "ср.  зак 7 д": "BH",
+    "ср. затраты за прошлые 7 дней": "BP",
+    "Ср.цена за 7 дней": "CC",
+    "Ср. \nскидка WB": "CV",
+    "Остатки ФБО ср.за 7 дней": "DM",
+    "Ср. прибыль c заказов по ИУ за 7 дней": "DV",
+    "Ср. показы за 7 дней": "EV",
+    "Ср. клики за 7 дней": "FE",
+    "ctr за 7 дней": "FM",
+    "Конверсия в корзину за 7 дней": "FU",
+    "Конверсия в заказ за 7 дней": "GC",
+    "Ср. добавления в корзину за 7 дней": "GK",
+    "Ср. переходы в карточку товара за 7 дней": "GS",
+    "Ср. \ncpc": "HI",
+    "Ср. \nрейтинг": "HQ",
+    "Ср.цена за 30 дней": "CB",
+    "Медианная цена 30 дней": "CA",
+    'ЧП-РК за 7 дней': "ED",
+    'Ср. \ncpo': "HA",
+    'ДРР факт за 7 дней' : "EM",
+    "Ср. cpm" : "HY",
+    "Ср. Органика" : "IH"
+}
+
+
 
 # ---- LOGS ----
 LOGS_PATH = os.getenv("LOGS_PATH")
@@ -310,59 +366,6 @@ def push_data_static_range(df, headers, col_num, articles_sorted, values_first_r
     All other logic (pivoting, retries) remains unchanged.
     """
 
-    METRIC_TO_COL = {
-        # Основные метрики
-        "Сумма заказов": "AX",
-        "Кол-во заказов": "BI",
-        "Сумма затрат": "BQ",
-        "Цены": "CD",
-        "скидка WB": "CW",
-        "Остатки": "DN",
-        "Прибыль c заказов по ИУ": "DW",
-        "Показы": "EW",
-        "Клики": "FF",
-        "ctr": "FN",
-        "Конверсия в корзину": "FV",
-        "Конверсия в заказ": "GD",
-        "Добавления в корзину": "GL",
-        "Переходы в карточку товара": "GT",
-        "cpc": "HJ",
-        "Рейтинг": "HR",
-        "cpo": "HB",
-        "Акции": "DF",
-        "ЧП-РК": "EE",
-        "ДРР": "EN",
-        "cpm": "HZ",
-        "ctr": "FN",
-        "Органика": "II",
-        "Свободный остаток": "DU",
-
-        # Исторические (средние) метрики
-        "ср. заказы за прошлые 7 дней": "AW",
-        "ср.  зак 7 д": "BH",
-        "ср. затраты за прошлые 7 дней": "BP",
-        "Ср.цена за 7 дней": "CC",
-        "Ср. \nскидка WB": "CV",
-        "Остатки ФБО ср.за 7 дней": "DM",
-        "Ср. прибыль c заказов по ИУ за 7 дней": "DV",
-        "Ср. показы за 7 дней": "EV",
-        "Ср. клики за 7 дней": "FE",
-        "ctr за 7 дней": "FM",
-        "Конверсия в корзину за 7 дней": "FU",
-        "Конверсия в заказ за 7 дней": "GC",
-        "Ср. добавления в корзину за 7 дней": "GK",
-        "Ср. переходы в карточку товара за 7 дней": "GS",
-        "Ср. \ncpc": "HI",
-        "Ср. \nрейтинг": "HQ",
-        "Ср.цена за 30 дней": "CB",
-        "Медианная цена 30 дней": "CA",
-        'ЧП-РК за 7 дней': "ED",
-        'Ср. \ncpo': "HA",
-        'ДРР факт за 7 дней' : "EM",
-        "Ср. cpm" : "HY",
-        "Ср. Органика" : "IH"
-    }
-
     cols = list(df.columns)
     absent_metrics = set(cols) - set(METRIC_TO_COL.keys())
     
@@ -422,28 +425,6 @@ def push_data_static_range(df, headers, col_num, articles_sorted, values_first_r
                 break
 
 
-def load_vendor_codes_info(filter_skus = None):
-    '''
-    Отдает словарь {sku : local_vendor_code}
-    '''
-
-    where = ''
-    if filter_skus is not None:
-        where = f'where nm_id in ({db.list_to_sql_select(filter_skus)})'        
-
-    query = f'''
-    select
-        nm_id,
-        local_vendor_code
-    from
-        article
-    {where}
-    '''
-    data = db.fetch_db_data_into_dict(query)
-
-    return {i['nm_id']:i['local_vendor_code'] for i in data}
-
-
 def load_avg_position_curr(articles_sorted = None):
     '''
     Description:
@@ -498,15 +479,41 @@ def load_avg_position_hist(articles_sorted = None):
     
     return hist
     
+def load_vendor_codes_info(filter_skus = None):
+    '''
+    Отдает словарь {sku : {
+                        'local_vendor_code' : local_vendor_code,
+                        'account' : account
+                        }
+    '''
+
+    where = ''
+    if filter_skus is not None:
+        where = f'where nm_id in ({db.list_to_sql_select(filter_skus)})'        
+
+    query = f'''
+    select
+        nm_id,
+        local_vendor_code,
+        account
+    from
+        article
+    {where}
+    '''
+    data = db.fetch_db_data_into_dict(query)
+
+    return {i['nm_id']:{'local_vendor_code': i['local_vendor_code'], 'account': i['account']} for i in data}
+
 
 if __name__ == "__main__":
 
     # ----- 1. загрузка данных из бд -----
     curr_data, hist_data = load_data()
 
+
     # ----- 2. берём данные из гугл таблицы -----
 
-    # sh = my_gspread.connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), AUTOPILOT_SHEET_NAME)
+    # sh = my_gspread.connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), AUTOPILOT_SHEET_NAME) # test
     sh = my_gspread.connect_to_remote_sheet(AUTOPILOT_TABLE_NAME, AUTOPILOT_SHEET_NAME)
     
     # сколько нужно выделить колонок под каждую метрику (по кол-ву дней)
@@ -539,15 +546,6 @@ if __name__ == "__main__":
     logging.info('Более ранние данные успешно добавлены.\n')
 
 
-    # # подумала, что внедрять на постоянной основе опасно, но пускай будет запасной метод быстрого обновления артикуловы
-    # # ----- обновление vendorcodes -----
-
-    # latest_vendorcodes = load_vendor_codes_info()
-    
-    # sorted_vendorcodes = [[latest_vendorcodes.get(i, '')] for i in articles_sorted]
-    # sh.update(values = sorted_vendorcodes, range_name = f'D4:D{4+len(sorted_vendorcodes)}')
-
-
     # ----- 4. средняя позиция -----
 
     # последняя неделя
@@ -564,10 +562,25 @@ if __name__ == "__main__":
     logging.info('Данные по средним позициям выгружены')
 
 
-    # ----- 5. юнит -----
+    # ----- 5. Обновление вилдов и клиентов -----
+
+    info = load_vendor_codes_info()
+    vendorcodes = [[info[i].get('local_vendor_code', '')] for i in articles_sorted if i in info]
+    accounts = [[str(info[i].get('account', '')).upper()] for i in articles_sorted if i in info]
+    
+    sh.update(values = vendorcodes, range_name = f"{METRIC_TO_COL['wild']}{values_first_row}:{METRIC_TO_COL['wild']}{sh_len}")
+    logging.info('Информация по вилдам успешно обновлена')
+
+    sh.update(values = accounts, range_name = f"{METRIC_TO_COL['account']}{values_first_row}:{METRIC_TO_COL['account']}{sh_len}")
+    logging.info('Информация по кабинетам успешно обновлена')
 
 
-    # 5.1. обновление статуса рекламы
+
+
+    # ----- юнит -----
+
+
+    # 1. обновление статуса рекламы
 
     logging.info('Updating the adv_status in Unit')
 
@@ -594,7 +607,7 @@ if __name__ == "__main__":
     update_adv_status_in_unit(unit_sh, new_adv_status_sorted)
 
 
-    # 5.2. обновление отзывов
+    # 2. обновление отзывов
 
     logging.info('Updating the feedbacks in Unit')
 
