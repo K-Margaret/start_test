@@ -238,12 +238,12 @@ def load_last_purch_price(wilds = None):
 
     db_data = fetch_db_data_into_dict(query)
     
-    fixed_price_items = open_json(ITEMS_FIXED_PRICE)
+    # fixed_price_items = open_json(ITEMS_FIXED_PRICE)
 
-    for item in db_data:
-        wild = item['local_vendor_code']
-        if wild in fixed_price_items:
-            item['price_per_item'] = fixed_price_items[wild]
+    # for item in db_data:
+    #     wild = item['local_vendor_code']
+    #     if wild in fixed_price_items:
+    #         item['price_per_item'] = fixed_price_items[wild]
 
     return db_data
 
