@@ -55,6 +55,10 @@ METRICS_RU = {
 }
 
 METRIC_TO_COL = {
+    # вилды и аккаунты
+    "wild_col" : "D",
+    "client_col":"C",
+    
     # Основные метрики
     "Сумма заказов": "AX",
     "Кол-во заказов": "BI",
@@ -80,8 +84,6 @@ METRIC_TO_COL = {
     "ctr": "FN",
     "Органика": "II",
     "Свободный остаток": "DU",
-    "wild" : "D",
-    "account":"C",
 
     # Исторические (средние) метрики
     "ср. заказы за прошлые 7 дней": "AW",
@@ -562,17 +564,17 @@ if __name__ == "__main__":
     logging.info('Данные по средним позициям выгружены')
 
 
-    # # ----- 5. Обновление вилдов и клиентов -----
+    # ----- 5. Обновление вилдов и клиентов -----
 
-    # info = load_vendor_codes_info()
-    # vendorcodes = [[info[i].get('local_vendor_code', '')] for i in articles_sorted if i in info]
-    # accounts = [[str(info[i].get('account', '')).upper()] for i in articles_sorted if i in info]
+    info = load_vendor_codes_info()
+    vendorcodes = [[info[i].get('local_vendor_code', '')] for i in articles_sorted if i in info]
+    accounts = [[str(info[i].get('account', '')).upper()] for i in articles_sorted if i in info]
     
-    # sh.update(values = vendorcodes, range_name = f"{METRIC_TO_COL['wild']}{values_first_row}:{METRIC_TO_COL['wild']}{sh_len}")
-    # logging.info('Информация по вилдам успешно обновлена')
+    sh.update(values = vendorcodes, range_name = f"{METRIC_TO_COL['wild_col']}{values_first_row}:{METRIC_TO_COL['wild_col']}{sh_len}")
+    logging.info('Информация по вилдам успешно обновлена')
 
-    # sh.update(values = accounts, range_name = f"{METRIC_TO_COL['account']}{values_first_row}:{METRIC_TO_COL['account']}{sh_len}")
-    # logging.info('Информация по кабинетам успешно обновлена')
+    sh.update(values = accounts, range_name = f"{METRIC_TO_COL['client_col']}{values_first_row}:{METRIC_TO_COL['client_col']}{sh_len}")
+    logging.info('Информация по кабинетам успешно обновлена')
 
 
 
