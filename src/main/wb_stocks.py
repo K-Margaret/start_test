@@ -1,26 +1,16 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-import logging
 import requests
 from psycopg2 import extras
 import time
 
 from utils.env_loader import *
+from utils.logger import setup_logger
 from utils.utils import load_api_tokens
 from utils.my_db_functions import create_connection_w_env
 
-LOGS_PATH = os.getenv("LOGS_PATH")
-os.makedirs(LOGS_PATH, exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(f"{LOGS_PATH}/wb_stocks.log", encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-
+logger = setup_logger("wb_stocks.log")
 
 def get_wb_stocks(api_token: str, date_from: str = "2019-06-20T00:00:00") -> list:
     """
@@ -45,18 +35,18 @@ def get_wb_stocks(api_token: str, date_from: str = "2019-06-20T00:00:00") -> lis
         response = requests.get(url, headers=headers, params=params)
 
         if response.status_code != 200:
-            logging.error(f"Ошибка {response.status_code}: {response.text}")
+            logger.error(f"Ошибка {response.status_code}: {response.text}")
             break
 
         data = response.json()
         if not data:
-            logging.warning("Получен пустой ответ")
+            logger.warning("Получен пустой ответ")
             break
 
         all_stocks.extend(data)
         current_date = data[-1]["lastChangeDate"]
 
-        # logging.info(f"Получено {len(data)} записей, всего: {len(all_stocks)}")
+        # logger.info(f"Получено {len(data)} записей, всего: {len(all_stocks)}")
 
         # Прекращаем цикл, если данных меньше лимита (т.е. всё выгружено)
         if len(data) < 60000:
@@ -66,10 +56,11 @@ def get_wb_stocks(api_token: str, date_from: str = "2019-06-20T00:00:00") -> lis
 
     return all_stocks
 
+
 def insert_wb_stocks(conn, stocks: list):
     """
     Вставляет список остатков в таблицу wb_stock.
-    Дубликаты по (last_change_date, warehouse_name, supplier_article) пропускаются.
+    Дубликаты по (last_change_date, warehouse_name, nm_id) пропускаются.
     """
     if not stocks:
         return
@@ -105,7 +96,7 @@ def insert_wb_stocks(conn, stocks: list):
         subject, brand, tech_size, price, discount, is_supply, is_realization, sc_code
     )
     VALUES %s
-    ON CONFLICT (last_change_date, warehouse_name, supplier_article)
+    ON CONFLICT (last_change_date, warehouse_name, nm_id)
     DO NOTHING;
     """
 
@@ -118,6 +109,7 @@ def insert_wb_stocks(conn, stocks: list):
         )
     conn.commit()
 
+
 if __name__ == "__main__":
     
     tokens = load_api_tokens()
@@ -127,15 +119,15 @@ if __name__ == "__main__":
         try:
             stocks = get_wb_stocks(token)
             if not stocks:
-                logging.info(f"Нет данных для клиента {client}, пропускаем.")
+                logger.info(f"Нет данных для клиента {client}, пропускаем.")
                 continue
             
-            logging.info(f"Получено {len(stocks)} записей")
+            logger.info(f"Получено {len(stocks)} записей")
             insert_wb_stocks(conn, stocks)
-            logging.info(f"Данные по кабинету {client} внесены в БД")
+            logger.info(f"Данные по кабинету {client} внесены в БД")
 
         except Exception as e:
-            logging.error(f"Ошибка обработки клиента {client}: {e}")
+            logger.error(f"Ошибка обработки клиента {client}: {e}")
             continue
 
     conn.close()
