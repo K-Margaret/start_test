@@ -6,7 +6,6 @@ from datetime import datetime
 import pandas as pd
 
 from utils.logger import setup_logger
-from utils.my_pandas import datetime_to_str
 from utils.my_db_functions import get_df_from_db
 from utils.my_gspread import init_client
 
@@ -149,12 +148,22 @@ if __name__ == "__main__":
             values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
             range_name='A1'
         )
+        logger.info('Данные успешно добавлены на лист "Заказы_поставщиков_1С"')
     except Exception as e:
-        raise e
+        logger.error(f'Ошибка при обновлении листа "Заказы_поставщиков_1С": {e}')
 
     try:
         supply_db = load_supply_data(months = months)
-        supply_renamed = datetime_to_str(supply_db.rename(columns=SUPPLY_RENAME))
+
+        datetime_cols = ['document_created_at', 'supply_date', 'update_document_datetime']
+
+        for col in datetime_cols:
+            if col in supply_db.columns:
+                supply_db[col] = pd.to_datetime(supply_db[col], errors='coerce')
+                supply_db[col] = supply_db[col].dt.strftime('%d.%m.%Y')
+                supply_db[col] = supply_db[col].fillna('')
+
+        supply_renamed = supply_db.rename(columns=SUPPLY_RENAME)
         supply_output = [supply_renamed.columns.tolist()] + supply_renamed.values.tolist()
         supply_sh = gs_table.worksheet('Приходы_1С')
         supply_sh.update(values = supply_output, range_name = 'A2')
@@ -162,5 +171,7 @@ if __name__ == "__main__":
             values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
             range_name='A1'
         )
+        logger.info('Данные успешно добавлены на лист "Приходы_1С"')
+
     except Exception as e:
         logger.error(f'Ошибка при обновлении листа "Приходы_1С": {e}')
