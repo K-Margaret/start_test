@@ -32,8 +32,17 @@ def load_db_data():
         COUNT(CASE WHEN f.productvaluation = 3 THEN 1 END) AS rating_3,
         COUNT(CASE WHEN f.productvaluation = 2 THEN 1 END) AS rating_2,
         COUNT(CASE WHEN f.productvaluation = 1 THEN 1 END) AS rating_1,
-        COUNT(*) AS total_feedbacks,
-        ROUND(AVG(f.productvaluation), 2) AS avg_rating
+        COUNT(*) AS "Кол-во отзывов 30 дней",
+        ROUND(AVG(f.productvaluation), 3) AS "Ср.рейтинг 30 дней",
+        ROUND(AVG(CASE 
+                    WHEN f.createddate >= (CURRENT_TIMESTAMP - INTERVAL '1 month')
+                     AND f.createddate < (CURRENT_TIMESTAMP - INTERVAL '2 weeks') 
+                    THEN f.productvaluation 
+                 END), 3) AS "Ср.рейтинг первые 2 недели",
+        ROUND(AVG(CASE 
+                    WHEN f.createddate >= (CURRENT_TIMESTAMP - INTERVAL '2 weeks')
+                    THEN f.productvaluation 
+                 END), 3) AS "Ср.рейтинг последние 2 недели"
     FROM wb_feedbacks f
     JOIN article a 
         ON f.nmid = a.nm_id
@@ -41,7 +50,7 @@ def load_db_data():
     AND a.local_vendor_code LIKE 'wild%'
     AND f.createddate >= (CURRENT_TIMESTAMP - INTERVAL '1 month')
     GROUP BY a.local_vendor_code
-    ORDER BY total_feedbacks DESC;
+    ORDER BY "Кол-во отзывов 30 дней" DESC;
     '''
     return get_df_from_db(query)
 
@@ -58,5 +67,5 @@ if __name__ == "__main__":
     current_time = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
     purch_sh.update(
         values=[[f'Обновлено {current_time}']],
-        range_name='I1'
+        range_name='K1'
     )
