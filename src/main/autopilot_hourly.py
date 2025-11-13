@@ -828,22 +828,22 @@ if __name__ == "__main__":
     pilot_table_name = os.getenv('AUTOPILOT_TABLE_NAME')
     pilot_sheet_name = os.getenv('AUTOPILOT_SHEET_NAME')
 
-    # sh = my_gspread.connect_to_remote_sheet(pilot_table_name, pilot_sheet_name) # prod
+    sh = my_gspread.connect_to_remote_sheet(pilot_table_name, pilot_sheet_name) # prod
 
     # local sheet for tests
-    sh = my_gspread.connect_to_local_sheet(os.getenv('LOCAL_TEST_TABLE'), pilot_sheet_name)
+    # sh = my_gspread.connect_to_local_sheet(os.getenv('LOCAL_TEST_TABLE'), pilot_sheet_name)
     
     # заголовки для подсчёта номера колонки
     сurr_headers = None #sh.row_values(2)
     col_num = 7
     values_first_row = 4
     sh_len = sh.row_count
-    # sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME')) # prod
-    # articles_sorted = [int(i) for i in sos_page.col_values(1)] # prod
+    sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME')) # prod
+    articles_sorted = [int(i) for i in sos_page.col_values(1)] # prod
 
     # for tests
-    articles_raw = sh.col_values(1)[3:]
-    articles_sorted = [int(n) for n in articles_raw]
+    # articles_raw = sh.col_values(1)[3:]
+    # articles_sorted = [int(n) for n in articles_raw]
 
     # tiny list of articles for test
     # articles_sorted = [577506829, 238875938, 155430993] # [absent_from_website, no_stock, active]
@@ -856,21 +856,20 @@ if __name__ == "__main__":
     try:
         
 
-        # # ----- выгрузка остатков из юнитки -----
-        # try:
-        #     unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
-        #     unit_remains = load_unit_remains(unit_sh = unit_sh)
+        # ----- выгрузка остатков из юнитки -----
+        try:
+            unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
+            unit_remains = load_unit_remains(unit_sh = unit_sh)
 
-        #     pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
-        #     output_data = [[value] for key, value in pilot_remains.items()]
+            pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
+            output_data = [[value] for key, value in pilot_remains.items()]
 
-        #     col_letter = METRIC_TO_COL["Свободный остаток"]
-        #     output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
-        #     my_gspread.add_data_to_range(sh, output_data, output_range)
-        #     logging.info('Остатки склада успешно загружены в ПУ')
-        # except Exception as e:
-        #     logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
-        #     raise ValueError
+            col_letter = METRIC_TO_COL["Свободный остаток"]
+            output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
+            my_gspread.add_data_to_range(sh, output_data, output_range)
+            logging.info('Остатки склада успешно загружены в ПУ')
+        except Exception as e:
+            logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
 
         # ----- promo, rating, prices, spp, цена с спп -----
         wb_data = get_data_from_WB(articles_sorted)
