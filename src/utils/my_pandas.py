@@ -69,3 +69,15 @@ def clean_tz_cols(df):
         if pd.api.types.is_datetime64tz_dtype(df[col]):
             df[col] = df[col].dt.tz_localize(None)
     return df
+
+
+def datetime_to_str(df, datetime_format="%d.%m.%Y %H:%M:%S"):
+    """
+    Converts a DataFrame to list-of-lists suitable for gspread,
+    converting datetime objects to strings.
+    """
+    df_copy = df.copy()
+    datetime_cols = df_copy.select_dtypes(include=["datetime", "datetime64[ns]"]).columns
+    for col in datetime_cols:
+        df_copy[col] = df_copy[col].dt.strftime(datetime_format).fillna('')
+    return df_copy
