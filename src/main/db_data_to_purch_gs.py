@@ -159,7 +159,7 @@ if __name__ == "__main__":
         supply_sh = gs_table.worksheet('Приходы_1С')
         supply_sh.update(values = supply_output, range_name = 'A2')
         supply_sh.update(
-            values=[[f'Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}']],
+            values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
             range_name='A1'
         )
     except Exception as e:
