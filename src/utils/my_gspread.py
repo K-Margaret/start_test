@@ -357,6 +357,54 @@ def delete_rows_by_index(sh, row_indices, trash_sheet=None, dont_delete = False)
             logging.info(f'Deleted row {idx}')
             
 
+def delete_rows_based_on_values(sh, values_to_delete, col_num, transform_to_str = True, trash_sheet = None):
+    '''
+    Удаляет строки из таблицы sh, основываясь на значениях values_to_delete из столбца col_num.
+    Принимает gs таблицу, значения для удаления и номер столбца.
+    Перед чеком преобразует values_to_delete в строки.
+
+    Аргументы:
+    sh - gs sheet
+    values_to_delete - list of target values which have to be deleted
+    col_num - number of column in sh to delete values from (starting with 1, not 0)
+    transform_to_str - если нужно преобразовать values_to_delete в str (False на случай, если данные до этого преобразуются в строки)
+    '''
+    if values_to_delete is None:
+        raise ValueError("values_to_delete can't be None") 
+    elif not isinstance(values_to_delete, (list, tuple)):
+        values_to_delete = [values_to_delete]
+
+    col_values = sh.col_values(col_num)
+
+    if transform_to_str:
+        values_str = [str(value) for value in values_to_delete]
+
+    rows_to_delete = [
+        i + 1 for i, value in enumerate(col_values)
+        if value in values_str
+    ]
+
+    if not rows_to_delete:
+        logging.info(f"{sh.title}: Duplicates aren't found, no rows to delete.")
+        return
+
+    # сортируем в обратном порядке, чтобы избежать смещения строк
+    rows_to_delete.sort(reverse=True)
+    rows_num = len(rows_to_delete)
+    logging.info(f'Found {rows_num} rows to delete')
+    print(rows_to_delete)
+
+    try:
+        c = 1
+        for row_num in rows_to_delete:
+            sh.delete_rows(row_num)
+            logging.info(f'Deleted row {row_num}: proccessed {c}/{rows_num} rows')
+
+            # trash_sheet.update()
+            c += 1
+        logging.info(f"Successfully deleted {len(rows_to_delete)} rows: {sorted(rows_to_delete, reverse=False)}")
+    except Exception as e:
+        logging.error(f"Error during deletion: {e}")
 
 
 def remove_duplicates_by_val(sh, values_to_exclude, col_values_to_delete_from=None, col_num_to_delete_from=None, trash_sheet = None):
