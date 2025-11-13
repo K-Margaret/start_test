@@ -146,7 +146,7 @@ if __name__ == "__main__":
         orders_sh = gs_table.worksheet('Заказы_поставщиков_1С')
         orders_sh.update(values = orders_output, range_name = 'A2')
         orders_sh.update(
-            values=[[f'Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}']],
+            values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
             range_name='A1'
         )
     except Exception as e:
