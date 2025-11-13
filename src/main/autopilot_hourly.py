@@ -15,7 +15,7 @@ import requests
 import numpy as np
 import pandas as pd
 from time import sleep
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 from gspread.exceptions import APIError
 from psycopg2.extras import execute_values
@@ -104,29 +104,133 @@ logging.basicConfig(
 
 # ---- FUNCTIONS ----
 
+# deprecated method
+# def get_fun(account: str, api_token: str, nmIDs: list):
+#     logging.info(f"Начало обработки аккаунта {account}")
+#     url = 'https://seller-analytics-api.wildberries.ru/api/v2/nm-report/detail' 
+#     headers = {'Authorization': api_token}
+#     my_date = datetime.now()
+#     hour = int(datetime.now().strftime('%H'))
+#     begin = my_date.replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
+#     end = my_date.replace(hour=hour, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
+#     payload = {
+#         "brandNames": [],
+#         "objectIDs": [],
+#         "tagIDs": [],
+#         "nmIDs": nmIDs,
+#         "timezone": "Europe/Moscow",
+#         "period": {"begin": begin, "end": end},
+#         "orderBy": {"field": "ordersSumRub", "mode": "asc"},
+#         "page": 1
+#     }
+
+#     max_retries = 5
+#     base_delay = 10
+#     retry_count = 0
+    
+
+#     while retry_count < max_retries:
+#         try:
+#             logging.info(f"Попытка {retry_count + 1} для аккаунта {account}")
+#             start_time = time.time()
+#             res = requests.post(url=url, headers=headers, json=payload, timeout=30)
+#             logging.info(f"Ответ от API для {account} получен за {time.time() - start_time:.2f} сек.")
+
+#             if res.status_code != 200:
+#                 logging.warning(f"Код ответа {res.status_code} для {account}.")
+#                 delay = min(base_delay * (2 ** retry_count), 60)
+#                 sleep(delay)
+#                 retry_count += 1
+#                 continue
+
+#             try:
+#                 data = res.json()
+#                 if not data.get('data', {}).get('cards'):
+#                     logging.warning(f"Пустые данные для {account}")
+#                     return pd.DataFrame()
+                
+#                 data['account'] = account
+#                 df = pd.DataFrame(data['data']['cards'])
+                
+#                 if df.empty:
+#                     logging.warning(f"Пустой DataFrame для {account}")
+#                     return df
+                    
+#                 logging.info(f"Успешно получено {len(df)} карточек для {account}")
+                
+#                 df['name'] = df['object'].apply(lambda x: x['name'])
+#                 df['date'] = df['statistics'].apply(lambda x: x['selectedPeriod']['end'])
+#                 df['date'] = pd.to_datetime(df['date']).dt.date
+#                 df['openCardCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['openCardCount'])
+#                 df['addToCartCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['addToCartCount'])
+#                 df['ordersCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['ordersCount'])
+#                 df['ordersSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['ordersSumRub'])
+#                 df['buyoutsCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['buyoutsCount'])
+#                 df['buyoutsSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['buyoutsSumRub'])
+#                 df['cancelCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['cancelCount'])
+#                 df['cancelSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['cancelSumRub'])
+#                 df['avgPriceRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['avgPriceRub'])
+#                 df['avgOrdersCountPerDay'] = df['statistics'].apply(lambda x: x['selectedPeriod']['avgOrdersCountPerDay'])
+#                 df['conversions'] = df['statistics'].apply(lambda x: x['selectedPeriod']['conversions'])
+#                 df['addToCartPercent'] = df['conversions'].apply(lambda x: x['addToCartPercent'])
+#                 df['cartToOrderPercent'] = df['conversions'].apply(lambda x: x['cartToOrderPercent'])
+#                 df['buyoutsPercent'] = df['conversions'].apply(lambda x: x['buyoutsPercent'])
+#                 df['stocksMp'] = df['stocks'].apply(lambda x: x['stocksMp'])
+#                 df['stocksWb'] = df['stocks'].apply(lambda x: x['stocksWb'])
+#                 pattern = r'(wild\d+)'
+#                 df['wild'] = df['vendorCode'].str.extract(pattern)
+#                 df['account'] = account
+#                 df = df.drop(columns=['object', 'statistics', 'stocks', 'conversions', 'vendorCode'])
+#                 return df
+#             except json.JSONDecodeError as e:
+#                 logging.error(f"Ошибка JSON для {account}: {e}")
+#                 logging.debug(f"Ответ сервера: {res.text[:200]}...")
+#                 delay = min(base_delay * (2 ** retry_count), 60)  # максимум 60 сек
+#                 logging.info(f"Повтор через {delay} сек...")
+#                 sleep(delay)
+#                 retry_count += 1
+#                 continue
+                
+#         except requests.exceptions.RequestException as e:
+#             logging.error(f"Ошибка запроса для {account}: {e} параметры - {payload}")
+#             delay = min(base_delay * (2 ** retry_count), 60)  # максимум 60 сек
+#             logging.info(f"Повтор через {delay} сек...")
+#             sleep(delay)
+#             retry_count += 1
+    
+#     logging.error(f"Не удалось получить данные для {account} после {max_retries} попыток")
+#     return pd.DataFrame()
+
+
 def get_fun(account: str, api_token: str, nmIDs: list):
     logging.info(f"Начало обработки аккаунта {account}")
-    url = 'https://seller-analytics-api.wildberries.ru/api/v2/nm-report/detail' 
+    url = 'https://seller-analytics-api.wildberries.ru/api/analytics/v3/sales-funnel/products'
     headers = {'Authorization': api_token}
+
     my_date = datetime.now()
     hour = int(datetime.now().strftime('%H'))
-    begin = my_date.replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
-    end = my_date.replace(hour=hour, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
+    start = my_date.replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d')
+    end = my_date.replace(hour=hour, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d')
+
     payload = {
+        "selectedPeriod": {"start": start, "end": end},
+        "pastPeriod": {
+            "start": (my_date - timedelta(days=7)).strftime('%Y-%m-%d'),
+            "end": (my_date - timedelta(days=1)).strftime('%Y-%m-%d')
+        },
+        "nmIds": nmIDs,
         "brandNames": [],
-        "objectIDs": [],
-        "tagIDs": [],
-        "nmIDs": nmIDs,
-        "timezone": "Europe/Moscow",
-        "period": {"begin": begin, "end": end},
-        "orderBy": {"field": "ordersSumRub", "mode": "asc"},
-        "page": 1
+        "subjectIds": [],
+        "tagIds": [],
+        "skipDeletedNm": True,
+        "orderBy": {"field": "orderSum", "mode": "asc"},
+        "limit": 1000,
+        "offset": 0
     }
 
     max_retries = 5
     base_delay = 10
     retry_count = 0
-    
 
     while retry_count < max_retries:
         try:
@@ -144,59 +248,69 @@ def get_fun(account: str, api_token: str, nmIDs: list):
 
             try:
                 data = res.json()
-                if not data.get('data', {}).get('cards'):
+                if not data.get('data', {}).get('products'):
                     logging.warning(f"Пустые данные для {account}")
                     return pd.DataFrame()
-                
-                data['account'] = account
-                df = pd.DataFrame(data['data']['cards'])
-                
+
+                products = data['data']['products']
+                df = pd.json_normalize(products)
+
                 if df.empty:
                     logging.warning(f"Пустой DataFrame для {account}")
                     return df
-                    
+
                 logging.info(f"Успешно получено {len(df)} карточек для {account}")
-                
-                df['name'] = df['object'].apply(lambda x: x['name'])
-                df['date'] = df['statistics'].apply(lambda x: x['selectedPeriod']['end'])
-                df['date'] = pd.to_datetime(df['date']).dt.date
-                df['openCardCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['openCardCount'])
-                df['addToCartCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['addToCartCount'])
-                df['ordersCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['ordersCount'])
-                df['ordersSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['ordersSumRub'])
-                df['buyoutsCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['buyoutsCount'])
-                df['buyoutsSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['buyoutsSumRub'])
-                df['cancelCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['cancelCount'])
-                df['cancelSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['cancelSumRub'])
-                df['avgPriceRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['avgPriceRub'])
-                df['avgOrdersCountPerDay'] = df['statistics'].apply(lambda x: x['selectedPeriod']['avgOrdersCountPerDay'])
-                df['conversions'] = df['statistics'].apply(lambda x: x['selectedPeriod']['conversions'])
-                df['addToCartPercent'] = df['conversions'].apply(lambda x: x['addToCartPercent'])
-                df['cartToOrderPercent'] = df['conversions'].apply(lambda x: x['cartToOrderPercent'])
-                df['buyoutsPercent'] = df['conversions'].apply(lambda x: x['buyoutsPercent'])
-                df['stocksMp'] = df['stocks'].apply(lambda x: x['stocksMp'])
-                df['stocksWb'] = df['stocks'].apply(lambda x: x['stocksWb'])
+
+                # Flatten structure similar to the old DataFrame
+                df['name'] = df['product.title']
+                df['date'] = pd.to_datetime(df['statistic.selected.period.end']).dt.date
+                df['openCardCount'] = df['statistic.selected.openCount']
+                df['addToCartCount'] = df['statistic.selected.cartCount']
+                df['ordersCount'] = df['statistic.selected.orderCount']
+                df['ordersSumRub'] = df['statistic.selected.orderSum']
+                df['buyoutsCount'] = df['statistic.selected.buyoutCount']
+                df['buyoutsSumRub'] = df['statistic.selected.buyoutSum']
+                df['cancelCount'] = df['statistic.selected.cancelCount']
+                df['cancelSumRub'] = df['statistic.selected.cancelSum']
+                df['avgPriceRub'] = df['statistic.selected.avgPrice']
+                df['avgOrdersCountPerDay'] = df['statistic.selected.avgOrdersCountPerDay']
+                df['addToCartPercent'] = df['statistic.selected.conversions.addToCartPercent']
+                df['cartToOrderPercent'] = df['statistic.selected.conversions.cartToOrderPercent']
+                df['buyoutsPercent'] = df['statistic.selected.conversions.buyoutPercent']
+                df['stocksMp'] = df['product.stocks.mp']
+                df['stocksWb'] = df['product.stocks.wb']
+
                 pattern = r'(wild\d+)'
-                df['wild'] = df['vendorCode'].str.extract(pattern)
+                df['wild'] = df['product.vendorCode'].str.extract(pattern)
                 df['account'] = account
-                df = df.drop(columns=['object', 'statistics', 'stocks', 'conversions', 'vendorCode'])
+                df['nmID'] = df['product.nmId']  # ✅ add backward compatibility column
+
+                keep_cols = [
+                    'nmID', 'name', 'date', 'openCardCount', 'addToCartCount', 'ordersCount', 'ordersSumRub',
+                    'buyoutsCount', 'buyoutsSumRub', 'cancelCount', 'cancelSumRub', 'avgPriceRub',
+                    'avgOrdersCountPerDay', 'addToCartPercent', 'cartToOrderPercent', 'buyoutsPercent',
+                    'stocksMp', 'stocksWb', 'wild', 'account'
+                ]
+                df = df[keep_cols]
                 return df
+
+
             except json.JSONDecodeError as e:
                 logging.error(f"Ошибка JSON для {account}: {e}")
                 logging.debug(f"Ответ сервера: {res.text[:200]}...")
-                delay = min(base_delay * (2 ** retry_count), 60)  # максимум 60 сек
+                delay = min(base_delay * (2 ** retry_count), 60)
                 logging.info(f"Повтор через {delay} сек...")
                 sleep(delay)
                 retry_count += 1
                 continue
-                
+
         except requests.exceptions.RequestException as e:
             logging.error(f"Ошибка запроса для {account}: {e} параметры - {payload}")
-            delay = min(base_delay * (2 ** retry_count), 60)  # максимум 60 сек
+            delay = min(base_delay * (2 ** retry_count), 60)
             logging.info(f"Повтор через {delay} сек...")
             sleep(delay)
             retry_count += 1
-    
+
     logging.error(f"Не удалось получить данные для {account} после {max_retries} попыток")
     return pd.DataFrame()
 
@@ -261,6 +375,18 @@ def get_full_prices_from_API_WB(filter_articles = None):
         try: 
             # берём данные из апи
             api_token = tokens[account]
+            # data = my_gspread.get_data_offset(
+            #     url,
+            #     {"Authorization": api_token},
+            #     extract_callback=lambda r: r['data']['listGoods'],
+            #     return_keys=['nmId', 'sizes']
+            # )
+
+            # wb_articles_prices = {
+            #     item['nmId']: item['sizes'][0]['discountedPrice']
+            #     for item in data if item.get('sizes')
+            # }
+
             data = my_gspread.get_data_offset(url,
                                               {"Authorization": api_token},
                                               extract_callback = lambda r: r['data']['listGoods'],
@@ -702,22 +828,22 @@ if __name__ == "__main__":
     pilot_table_name = os.getenv('AUTOPILOT_TABLE_NAME')
     pilot_sheet_name = os.getenv('AUTOPILOT_SHEET_NAME')
 
-    sh = my_gspread.connect_to_remote_sheet(pilot_table_name, pilot_sheet_name)
+    # sh = my_gspread.connect_to_remote_sheet(pilot_table_name, pilot_sheet_name) # prod
 
     # local sheet for tests
-    # sh = my_gspread.connect_to_local_sheet(os.getenv('LOCAL_TEST_TABLE'), pilot_sheet_name)
+    sh = my_gspread.connect_to_local_sheet(os.getenv('LOCAL_TEST_TABLE'), pilot_sheet_name)
     
     # заголовки для подсчёта номера колонки
     сurr_headers = None #sh.row_values(2)
     col_num = 7
     values_first_row = 4
     sh_len = sh.row_count
-    sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME'))
-    articles_sorted = [int(i) for i in sos_page.col_values(1)]
+    # sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME')) # prod
+    # articles_sorted = [int(i) for i in sos_page.col_values(1)] # prod
 
     # for tests
-    # articles_raw = sh.col_values(1)[3:]
-    # articles_sorted = [int(n) for n in articles_raw]
+    articles_raw = sh.col_values(1)[3:]
+    articles_sorted = [int(n) for n in articles_raw]
 
     # tiny list of articles for test
     # articles_sorted = [577506829, 238875938, 155430993] # [absent_from_website, no_stock, active]
@@ -730,21 +856,21 @@ if __name__ == "__main__":
     try:
         
 
-        # ----- выгрузка остатков из юнитки -----
-        try:
-            unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
-            unit_remains = load_unit_remains(unit_sh = unit_sh)
+        # # ----- выгрузка остатков из юнитки -----
+        # try:
+        #     unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
+        #     unit_remains = load_unit_remains(unit_sh = unit_sh)
 
-            pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
-            output_data = [[value] for key, value in pilot_remains.items()]
+        #     pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
+        #     output_data = [[value] for key, value in pilot_remains.items()]
 
-            col_letter = METRIC_TO_COL["Свободный остаток"]
-            output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
-            my_gspread.add_data_to_range(sh, output_data, output_range)
-            logging.info('Остатки склада успешно загружены в ПУ')
-        except Exception as e:
-            logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
-            raise ValueError
+        #     col_letter = METRIC_TO_COL["Свободный остаток"]
+        #     output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
+        #     my_gspread.add_data_to_range(sh, output_data, output_range)
+        #     logging.info('Остатки склада успешно загружены в ПУ')
+        # except Exception as e:
+        #     logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
+        #     raise ValueError
 
         # ----- promo, rating, prices, spp, цена с спп -----
         wb_data = get_data_from_WB(articles_sorted)
@@ -823,8 +949,7 @@ if __name__ == "__main__":
         adv_by_sku = {item['article_id']: {k: v for k, v in item.items() if k != 'article_id'}
                       for item in adv_data
                       }
-        adv_ordered = [adv_by_sku[id] for id in articles_sorted if id in adv_by_sku]
-
+        adv_ordered = [adv_by_sku[id] for id in articles_sorted if id in adv_by_sku] 
         for metric_en, metric_ru in [['clicks', 'Клики'],['views', 'Показы'],
                                      ['cpm', 'cpm'], ['cpc', 'cpc'], ['ctr', 'ctr']]:
             metric_data = [[i[metric_en]] for i in adv_ordered]
