@@ -138,7 +138,7 @@ def process_daily_report(target_date):
     
     # append to Google Sheets
     yesterday_str = target_date.strftime('%d.%m.%Y')
-    row = ['', yesterday_str, target_period, calc]
+    row = [yesterday_str, target_period, calc]
     output_sh = TABLE.worksheet("ВБ_к_оплате")
     output_sh.append_row(row)
 
