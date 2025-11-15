@@ -127,8 +127,7 @@ def process_daily_report(target_date):
     logger.info("loaded db data")
     
     # load periods from GS
-    if not PERIODS:
-        PERIODS = load_periods()
+    PERIODS = load_periods()
     target_period = match_period(target_date, PERIODS)
 
     if target_period is None:
