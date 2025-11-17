@@ -856,68 +856,68 @@ if __name__ == "__main__":
     try:
         
 
-        # # ----- выгрузка остатков из юнитки -----
-        # try:
-        #     unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
-        #     unit_remains = load_unit_remains(unit_sh = unit_sh)
+        # ----- выгрузка остатков из юнитки -----
+        try:
+            unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
+            unit_remains = load_unit_remains(unit_sh = unit_sh)
 
-        #     pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
-        #     output_data = [[value] for key, value in pilot_remains.items()]
+            pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
+            output_data = [[value] for key, value in pilot_remains.items()]
 
-        #     col_letter = METRIC_TO_COL["Свободный остаток"]
-        #     output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
-        #     my_gspread.add_data_to_range(sh, output_data, output_range)
-        #     logging.info('Остатки склада успешно загружены в ПУ')
-        # except Exception as e:
-        #     logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
-        #     raise ValueError
+            col_letter = METRIC_TO_COL["Свободный остаток"]
+            output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
+            my_gspread.add_data_to_range(sh, output_data, output_range)
+            logging.info('Остатки склада успешно загружены в ПУ')
+        except Exception as e:
+            logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
+            raise ValueError
 
-        # # ----- promo, rating, prices, spp, цена с спп -----
-        # wb_data = get_data_from_WB(articles_sorted)
+        # ----- promo, rating, prices, spp, цена с спп -----
+        wb_data = get_data_from_WB(articles_sorted)
 
-        # # update spp price in db
-        # try:
-        #     connection = create_connection_w_env()
-        #     insert_spp_data_to_db(connection, wb_data)
-        #     connection.close()
-        # except Exception as e:
-        #     logging.erorr(f"Ошибка при попытке внесения изменений СПП цены: {e}")
+        # update spp price in db
+        try:
+            connection = create_connection_w_env()
+            insert_spp_data_to_db(connection, wb_data)
+            connection.close()
+        except Exception as e:
+            logging.erorr(f"Ошибка при попытке внесения изменений СПП цены: {e}")
 
-        # try:
-        #     # выгружаем promo, rating, prices, spp
-        #     for metric_ru, metric_en in [['Акции', 'promo_status'],
-        #                                 ['Рейтинг', 'rating'],
-        #                                 ['Цены', 'full_price'],
-        #                                 ['скидка WB', 'spp']]:
-        #         metric_data = [[wb_data[i][metric_en]] for i in articles_sorted]
-        #         range_start = METRIC_TO_COL[metric_ru]
-        #         range_end = my_gspread.calculate_range_end(range_start, col_num)
-        #         metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
+        try:
+            # выгружаем promo, rating, prices, spp
+            for metric_ru, metric_en in [['Акции', 'promo_status'],
+                                        ['Рейтинг', 'rating'],
+                                        ['Цены', 'full_price'],
+                                        ['скидка WB', 'spp']]:
+                metric_data = [[wb_data[i][metric_en]] for i in articles_sorted]
+                range_start = METRIC_TO_COL[metric_ru]
+                range_end = my_gspread.calculate_range_end(range_start, col_num)
+                metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
 
-        #         try:
-        #             my_gspread.add_data_to_range(sh, metric_data, metric_range, clean_range=False)
-        #             logging.info(f'Данные по {metric_ru} за сегодня были успешно добавлены в диапазон {metric_range}.')
-        #         except Exception as e:
-        #             logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
-        #             continue
-        # except Exception as e:
-        #     logging.error(f"Ошибка при выгрузке {metric_ru}: {e}")
+                try:
+                    my_gspread.add_data_to_range(sh, metric_data, metric_range, clean_range=False)
+                    logging.info(f'Данные по {metric_ru} за сегодня были успешно добавлены в диапазон {metric_range}.')
+                except Exception as e:
+                    logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
+                    continue
+        except Exception as e:
+            logging.error(f"Ошибка при выгрузке {metric_ru}: {e}")
 
-        # try:
+        try:
 
-        #     # выгружаем цену с спп
-        #     spp_price = [
-        #         [wb_data[i].get('discounted_price', '')] if i in wb_data else ['']
-        #         for i in articles_sorted
-        #     ]
-        #     spp_price_col_letter = METRIC_TO_COL["Наша цена с СПП"]
+            # выгружаем цену с спп
+            spp_price = [
+                [wb_data[i].get('discounted_price', '')] if i in wb_data else ['']
+                for i in articles_sorted
+            ]
+            spp_price_col_letter = METRIC_TO_COL["Наша цена с СПП"]
 
-        #     metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
-        #     my_gspread.add_data_to_range(sh, spp_price, metric_range, clean_range=False)
-        #     logging.info(f'Данные по Наша цена с СПП за сегодня были успешно добавлены в диапазон {metric_range}.')
+            metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
+            my_gspread.add_data_to_range(sh, spp_price, metric_range, clean_range=False)
+            logging.info(f'Данные по Наша цена с СПП за сегодня были успешно добавлены в диапазон {metric_range}.')
         
-        # except Exception as e:
-        #     logging.error(f"Ошибка при выгрузке Цены с СПП: {e}")
+        except Exception as e:
+            logging.error(f"Ошибка при выгрузке Цены с СПП: {e}")
 
 
         # ----- adv spend -----
