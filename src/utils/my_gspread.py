@@ -650,3 +650,25 @@ def clean_number(value):
         cleaned = re.sub(r'[^\d]', '', value)
         return int(cleaned) if cleaned else 0
     return value
+
+def clean_float_number(value):
+    if not isinstance(value, str):
+        return value
+
+    # replace non-breaking spaces with normal spaces
+    value = value.replace("\xa0", " ")
+
+    # remove spaces
+    value = value.replace(" ", "")
+
+    # replace comma with dot for float
+    value = value.replace(",", ".")
+
+    # keep digits and dot only
+    cleaned = re.sub(r"[^0-9.]", "", value)
+
+    # convert
+    try:
+        return float(cleaned)
+    except ValueError:
+        return 0
