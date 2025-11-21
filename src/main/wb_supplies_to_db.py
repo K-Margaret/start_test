@@ -287,23 +287,25 @@ if __name__ == "__main__":
 
         # получаем номера поставок
         supplies = get_supplies_paginated(token)
-        supplies_ids = [i['supplyID'] for i in supplies]
+        supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
         # supplies_ids = supplies_ids[:3] # test
         try:
-
-            # получаем информацию о поставке
-            supplies_info = get_supplies_by_ids(IDs=supplies_ids, token = token)
-
             conn = create_connection_w_env()
-            insert_wb_supplies_to_db(records = supplies_info, conn = conn)
-            logger.info(f'Added {client} client data to wb_supplies')
 
-            # получаем информацию о товарах в поставке
-            supplies_goods = get_multiple_supplies_goods(IDs = supplies_ids, token = token)
+            # process supplies in batches of 50
+            for i in range(0, len(supplies_ids), 50):
+                batch_ids = supplies_ids[i:i+50]
 
-            insert_wb_supplies_goods(records=supplies_goods, conn = conn)
-            logger.info(f'Added {client} client data to wb_supplies_goods')
-        
+                # получаем информацию о поставке
+                supplies_info = get_supplies_by_ids(IDs=batch_ids, token=token)
+                insert_wb_supplies_to_db(records=supplies_info, conn=conn)
+                logger.info(f'Added {client} client batch {i//50 + 1} data to wb_supplies')
+
+                # получаем информацию о товарах в поставке
+                supplies_goods = get_multiple_supplies_goods(IDs=batch_ids, token=token)
+                insert_wb_supplies_goods(records=supplies_goods, conn=conn)
+                logger.info(f'Added {client} client batch {i//50 + 1} data to wb_supplies_goods')
+
         except Exception as e:
             logger.error(f'Error while uploading data to the wb_supplies db table: {e}')
             raise
