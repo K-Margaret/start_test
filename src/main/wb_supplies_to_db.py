@@ -5,6 +5,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+import asyncio
 import requests
 from time import sleep
 from psycopg2.extras import execute_values
@@ -280,35 +281,73 @@ def insert_wb_supplies_goods(records, conn):
     conn.commit()
 
 
-if __name__ == "__main__":
+async def process_client(client: str, token: str):
+    supplies = await asyncio.to_thread(get_supplies_paginated, token)
+    supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
+
+    try:
+        conn = create_connection_w_env()
+
+        for i in range(0, len(supplies_ids), 50):
+            batch_ids = supplies_ids[i:i+50]
+
+            supplies_info = await asyncio.to_thread(get_supplies_by_ids, batch_ids, token)
+            insert_wb_supplies_to_db(supplies_info, conn)
+
+            supplies_goods = await asyncio.to_thread(get_multiple_supplies_goods, batch_ids, token)
+            insert_wb_supplies_goods(supplies_goods, conn)
+
+            logger.info(f"{client} batch {i//50+1} done")
+
+    except Exception as e:
+        logger.error(f"Client {client} error: {e}")
+        raise
+
+
+async def main():
     tokens = load_api_tokens()
 
+    tasks = []
     for client, token in tokens.items():
+        tasks.append(asyncio.create_task(process_client(client, token)))
 
-        if client == 'Даниелян':
-            continue
+    # run all clients concurrently
+    await asyncio.gather(*tasks)
 
-        # получаем номера поставок
-        supplies = get_supplies_paginated(token)
-        supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
-        # supplies_ids = supplies_ids[:3] # test
-        try:
-            conn = create_connection_w_env()
+if __name__ == "__main__":
+    asyncio.run(main())
 
-            # process supplies in batches of 50
-            for i in range(0, len(supplies_ids), 50):
-                batch_ids = supplies_ids[i:i+50]
 
-                # получаем информацию о поставке
-                supplies_info = get_supplies_by_ids(IDs=batch_ids, token=token)
-                insert_wb_supplies_to_db(records=supplies_info, conn=conn)
-                logger.info(f'Added {client} client batch {i//50 + 1} data to wb_supplies')
 
-                # получаем информацию о товарах в поставке
-                supplies_goods = get_multiple_supplies_goods(IDs=batch_ids, token=token)
-                insert_wb_supplies_goods(records=supplies_goods, conn=conn)
-                logger.info(f'Added {client} client batch {i//50 + 1} data to wb_supplies_goods')
+# if __name__ == "__main__":
+#     tokens = load_api_tokens()
 
-        except Exception as e:
-            logger.error(f'Error while uploading data to the wb_supplies db table: {e}')
-            raise
+#     for client, token in tokens.items():
+
+#         if client == 'Даниелян':
+#             continue
+
+#         # получаем номера поставок
+#         supplies = get_supplies_paginated(token)
+#         supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
+#         # supplies_ids = supplies_ids[:3] # test
+#         try:
+#             conn = create_connection_w_env()
+
+#             # process supplies in batches of 50
+#             for i in range(0, len(supplies_ids), 50):
+#                 batch_ids = supplies_ids[i:i+50]
+
+#                 # получаем информацию о поставке
+#                 supplies_info = get_supplies_by_ids(IDs=batch_ids, token=token)
+#                 insert_wb_supplies_to_db(records=supplies_info, conn=conn)
+#                 logger.info(f'Added {client} client batch {i//50 + 1} data to wb_supplies')
+
+#                 # получаем информацию о товарах в поставке
+#                 supplies_goods = get_multiple_supplies_goods(IDs=batch_ids, token=token)
+#                 insert_wb_supplies_goods(records=supplies_goods, conn=conn)
+#                 logger.info(f'Added {client} client batch {i//50 + 1} data to wb_supplies_goods')
+
+#         except Exception as e:
+#             logger.error(f'Error while uploading data to the wb_supplies db table: {e}')
+#             raise
