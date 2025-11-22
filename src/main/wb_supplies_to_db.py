@@ -280,6 +280,10 @@ def insert_wb_supplies_goods(records, conn):
         execute_values(cur, query, values)
     conn.commit()
 
+def fetch_existing_supply_ids(conn):
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM wb_supplies")
+    return [int(row[0]) for row in cursor.fetchall()]
 
 async def process_client(client: str, token: str):
     supplies = await asyncio.to_thread(get_supplies_paginated, token)
@@ -287,6 +291,10 @@ async def process_client(client: str, token: str):
 
     try:
         conn = create_connection_w_env()
+        existing_ids = set(fetch_existing_supply_ids(conn))
+        print(len(supplies_ids))
+        supplies_ids = [i for i in supplies_ids if i not in existing_ids]
+        print(len(supplies_ids))
 
         for i in range(0, len(supplies_ids), 50):
             batch_ids = supplies_ids[i:i+50]
