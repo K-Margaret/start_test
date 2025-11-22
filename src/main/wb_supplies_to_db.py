@@ -285,6 +285,9 @@ if __name__ == "__main__":
 
     for client, token in tokens.items():
 
+        if client == 'Даниелян':
+            continue
+
         # получаем номера поставок
         supplies = get_supplies_paginated(token)
         supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
