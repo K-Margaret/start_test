@@ -5,9 +5,12 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from datetime import datetime
 import pandas as pd
 
+from utils.my_gspread import connect_to_local_sheet
+
 from utils.logger import setup_logger
 from utils.my_db_functions import get_df_from_db
 from utils.my_gspread import init_client
+from utils.my_pandas import datetime_to_str
 
 logger = setup_logger("db_data_to_purch_gs.log")
 
@@ -120,6 +123,27 @@ def load_supply_data(months):
     df = get_df_from_db(query)
     return df
 
+def load_wb_supplies():
+    query = '''
+        select
+        wsg.id                                   as "Номер поставки",
+        ws.supply_date                           as "Плановая дата поставки",
+        ws.fact_date                             as "Фактическая дата поставки",
+        ws.status_id                             as "Статус",
+        ws.quantity                              as "Добавлено в поставку",
+        ws.unloading_quantity                    as "Раскладывается",
+        ws.accepted_quantity                     as "Принято, шт",
+        ws.ready_for_sale_quantity               as "Поступило в продажу",
+        wsg.vendor_code                          as "Артикул продавца",
+        wsg.nm_id                                as "Артикул WB",
+        wsg.supplier_box_amount                  as "Указано в упаковке, шт"
+    from wb_supplies_goods wsg
+    left join wb_supplies ws 
+        on wsg.id = ws.id
+    where ws.create_date >= NOW() - interval '2 months'
+    order by ws.supply_date DESC;
+    '''
+    return get_df_from_db(query)
 
 if __name__ == "__main__":
     
@@ -135,6 +159,7 @@ if __name__ == "__main__":
 
         for col in datetime_cols:
             if col in orders_db.columns:
+                orders_db[col] = orders_db[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
                 orders_db[col] = pd.to_datetime(orders_db[col], errors='coerce')
                 orders_db[col] = orders_db[col].dt.strftime('%d.%m.%Y')
                 orders_db[col] = orders_db[col].fillna('')
@@ -159,6 +184,7 @@ if __name__ == "__main__":
 
         for col in datetime_cols:
             if col in supply_db.columns:
+                supply_db[col] = supply_db[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
                 supply_db[col] = pd.to_datetime(supply_db[col], errors='coerce')
                 supply_db[col] = supply_db[col].dt.strftime('%d.%m.%Y')
                 supply_db[col] = supply_db[col].fillna('')
@@ -175,3 +201,33 @@ if __name__ == "__main__":
 
     except Exception as e:
         logger.error(f'Ошибка при обновлении листа "Приходы_1С": {e}')
+    
+    # try:
+    #     wb_supplies = load_wb_supplies()
+    #     wb_supplies['Статус'] = wb_supplies['Статус'].map({
+    #         1: "Не запланировано",
+    #         2: "Запланировано",
+    #         3: "Отгрузка разрешена",
+    #         4: "Идёт приёмка",
+    #         5: "Принято",
+    #         6: "Отгружено на воротах",
+    #     })
+
+    #     for col in ["Плановая дата поставки", "Фактическая дата поставки"]:
+    #         if col in wb_supplies.columns:
+    #             wb_supplies[col] = wb_supplies[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
+    #             wb_supplies[col] = pd.to_datetime(wb_supplies[col], errors='coerce')
+    #             wb_supplies[col] = wb_supplies[col].dt.strftime('%d.%m.%Y')
+    #             wb_supplies[col] = wb_supplies[col].fillna('')
+
+    #     wb_output = [wb_supplies.columns.tolist()] + wb_supplies.values.tolist()
+    #     wb_supplies_sh = gs_table.worksheet('БД_поставки')
+    #     wb_supplies_sh.update(values = wb_output, range_name = 'A2')
+    #     wb_supplies_sh.update(
+    #         values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
+    #         range_name='A1'
+    #     )
+    #     logger.info('Данные успешно добавлены на лист "БД_поставки"')
+
+    # except Exception as e:
+    #     logger.error(f'Failed to upload data to БД_поставки: {e}')
