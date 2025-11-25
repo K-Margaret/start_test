@@ -304,7 +304,7 @@ async def process_client(client: str, token: str):
     # supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
 
     # вариант 2 - берем supplyID, по которым есть изменения ('updatedDate') за последний день
-    one_week_ago = datetime.now() - timedelta(days=1)
+    one_week_ago = datetime.now() - timedelta(days=30)
     supplies_ids = [
         i['supplyID'] 
         for i in supplies 
