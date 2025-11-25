@@ -209,9 +209,14 @@ def insert_wb_supplies_to_db(records, conn):
 
     # Normalize each record
     normalized = []
+    # for item in records:
+    #     row = {rename_map[k]: v for k, v in item.items() if k in rename_map}
+    #     normalized.append(row)
+
     for item in records:
         row = {rename_map[k]: v for k, v in item.items() if k in rename_map}
-        normalized.append(row)
+        if row.get("id") is not None:
+            normalized.append(row)
 
     if not normalized:
         return
@@ -241,7 +246,6 @@ def insert_wb_supplies_goods(records, conn):
     ON CONFLICT DO NOTHING.
     """
 
-    # camelCase → snake_case mapping
     rename_map = {
         "ID": "id",
         "barcode": "barcode",
@@ -259,9 +263,14 @@ def insert_wb_supplies_goods(records, conn):
     }
 
     normalized = []
+    # for item in records:
+    #     row = {rename_map[k]: v for k, v in item.items() if k in rename_map}
+    #     normalized.append(row)
+
     for item in records:
         row = {rename_map[k]: v for k, v in item.items() if k in rename_map}
-        normalized.append(row)
+        if row.get("id") is not None:
+            normalized.append(row)
 
     if not normalized:
         return
@@ -288,10 +297,14 @@ def fetch_existing_supply_ids(conn):
 
 async def process_client(client: str, token: str):
     supplies = await asyncio.to_thread(get_supplies_paginated, token)
+
+    # сортировка supplyID
+
+    # вариант 1 - если нужны все данные
     # supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
 
-    # сортируем supplyID - берем supplyID, по которым есть изменения ('updatedDate') за последнюю неделю
-    one_week_ago = datetime.now() - timedelta(days=30)
+    # вариант 2 - берем supplyID, по которым есть изменения ('updatedDate') за последний день
+    one_week_ago = datetime.now() - timedelta(days=1)
     supplies_ids = [
         i['supplyID'] 
         for i in supplies 
