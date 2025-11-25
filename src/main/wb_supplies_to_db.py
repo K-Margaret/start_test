@@ -295,7 +295,7 @@ def fetch_existing_supply_ids(conn):
     cursor.execute("SELECT id FROM wb_supplies")
     return [int(row[0]) for row in cursor.fetchall()]
 
-async def process_client(client: str, token: str):
+async def process_client(client: str, token: str, conn):
     supplies = await asyncio.to_thread(get_supplies_paginated, token)
 
     # сортировка supplyID
@@ -304,7 +304,7 @@ async def process_client(client: str, token: str):
     # supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
 
     # вариант 2 - берем supplyID, по которым есть изменения ('updatedDate') за последний день
-    one_week_ago = datetime.now() - timedelta(days=30)
+    one_week_ago = datetime.now() - timedelta(days=1)
     supplies_ids = [
         i['supplyID'] 
         for i in supplies 
@@ -312,7 +312,6 @@ async def process_client(client: str, token: str):
     ]
 
     try:
-        conn = create_connection_w_env()
 
         for i in range(0, len(supplies_ids), 50):
             batch_ids = supplies_ids[i:i+50]
@@ -332,10 +331,11 @@ async def process_client(client: str, token: str):
 
 async def main():
     tokens = load_api_tokens()
+    conn = create_connection_w_env()
 
     tasks = []
     for client, token in tokens.items():
-        tasks.append(asyncio.create_task(process_client(client, token)))
+        tasks.append(asyncio.create_task(process_client(client, token, conn)))
 
     # run all clients concurrently
     await asyncio.gather(*tasks)
