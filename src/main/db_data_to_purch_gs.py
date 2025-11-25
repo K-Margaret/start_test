@@ -125,23 +125,23 @@ def load_supply_data(months):
 
 def load_wb_supplies():
     query = '''
-        select
-        wsg.id                                   as "Номер поставки",
-        ws.supply_date                           as "Плановая дата поставки",
-        ws.fact_date                             as "Фактическая дата поставки",
-        ws.status_id                             as "Статус",
-        ws.quantity                              as "Добавлено в поставку",
-        ws.unloading_quantity                    as "Раскладывается",
-        ws.accepted_quantity                     as "Принято, шт",
-        ws.ready_for_sale_quantity               as "Поступило в продажу",
-        wsg.vendor_code                          as "Артикул продавца",
-        wsg.nm_id                                as "Артикул WB",
-        wsg.supplier_box_amount                  as "Указано в упаковке, шт"
-    from wb_supplies_goods wsg
-    left join wb_supplies ws 
-        on wsg.id = ws.id
-    where ws.create_date >= NOW() - interval '2 months'
-    order by ws.updated_date DESC;
+    SELECT DISTINCT ON (wsg.id, wsg.vendor_code)
+        wsg.id                                   AS "Номер поставки",
+        ws.supply_date                           AS "Плановая дата поставки",
+        ws.fact_date                             AS "Фактическая дата поставки",
+        ws.status_id                             AS "Статус",
+        ws.quantity                              AS "Добавлено в поставку",
+        ws.unloading_quantity                    AS "Раскладывается",
+        ws.accepted_quantity                     AS "Принято, шт",
+        ws.ready_for_sale_quantity               AS "Поступило в продажу",
+        wsg.vendor_code                          AS "Артикул продавца",
+        wsg.nm_id                                AS "Артикул WB",
+        wsg.supplier_box_amount                  AS "Указано в упаковке, шт"
+    FROM wb_supplies_goods wsg
+    LEFT JOIN wb_supplies ws 
+        ON wsg.id = ws.id
+    WHERE ws.create_date >= NOW() - INTERVAL '2 months'
+    ORDER BY wsg.id, wsg.vendor_code, ws.updated_date DESC;
     '''
     return get_df_from_db(query)
 
