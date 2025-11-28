@@ -5,14 +5,16 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from datetime import datetime
 import pandas as pd
 
-from utils.my_gspread import connect_to_local_sheet
+# from utils.my_gspread import connect_to_local_sheet
 
 from utils.logger import setup_logger
 from utils.my_db_functions import get_df_from_db
 from utils.my_gspread import init_client
-from utils.my_pandas import datetime_to_str
+from utils.env_loader import *
 
 logger = setup_logger("db_data_to_purch_gs.log")
+
+LOCAL_TABLE=os.getenv('LOCAL_TABLE')
 
 ORDERS_RENAME = {
     "document_number": "Номер документа",
@@ -145,12 +147,13 @@ def load_wb_supplies():
     '''
     return get_df_from_db(query)
 
+
 if __name__ == "__main__":
     
     try:
         months = None
         client = init_client()
-        gs_table = client.open('Тест Расчет закупки')
+        gs_table = client.open(LOCAL_TABLE)
 
         orders_db = load_orders_data(months = months)
 
