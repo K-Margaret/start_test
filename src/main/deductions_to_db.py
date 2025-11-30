@@ -12,7 +12,7 @@ from utils.utils import load_api_tokens
 from psycopg2.extras import execute_values
 from utils.my_db_functions import create_connection_w_env
 
-logger = setup_logger("deductions.log")
+logger = setup_logger("deductions_to_db.log")
 
 # def to_iso(d):
 #     return datetime.strptime(d, "%Y-%m-%d").strftime("%Y-%m-%dT00:00:00Z")
