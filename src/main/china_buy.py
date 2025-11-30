@@ -247,6 +247,34 @@ def load_last_purch_price(wilds = None):
 
     return db_data
 
+def update_purchase_price_in_gs(orders_sh):
+    header_row_num = list(orders_sh.col_values(1)).index('Фото') + 1
+    headers = orders_sh.row_values(header_row_num)
+
+    wilds_raw = orders_sh.col_values(headers.index('wild') + 1)[header_row_num:]
+    names_raw = orders_sh.col_values(headers.index('Модель') + 1)[header_row_num:]
+
+    orders_sh_wilds_lst = [[w, n] for w, n in zip(wilds_raw, names_raw)] # 23.10: вкл пустые строки для выгрузки в гугл
+
+    orders_sh_wilds = {i[0]:i[1] for i in orders_sh_wilds_lst if i[0]} # 23.10: убираем пустые строки для запроса в бд
+    orders_ids = list(orders_sh_wilds.keys())
+    purch_price = load_last_purch_price(orders_ids)
+
+    purch_dict = {d['local_vendor_code']: d['price_per_item'] for d in purch_price}
+
+    list_of_ordered_ids = [i[0] for i in orders_sh_wilds_lst]
+    result = [
+        [purch_dict.get(wild, 0)]
+        for wild in list_of_ordered_ids
+    ]
+
+    price_col_letter = column_number_to_letter(headers.index('Последняя цена рынок'))
+    output_range = f'{price_col_letter}{header_row_num + 1}:{price_col_letter}{orders_sh.row_count}'
+    print(f'Uploading new prices to the range {output_range}')
+    orders_sh.update(result, range_name = output_range)
+    logging.info(f"Successfully added purchase price to the sheet {orders_sh.title}")
+    return orders_sh_wilds
+
 
 if __name__ == "__main__":
     
@@ -262,29 +290,10 @@ if __name__ == "__main__":
     # 2. выгружаем закупочные цены в CHINA_ORDERS
     try:
         orders_sh = table.worksheet(CHINA_ORDERS)
-        header_row_num = list(orders_sh.col_values(1)).index('Фото') + 1
-        headers = orders_sh.row_values(header_row_num)
+        orders_sh_wilds = update_purchase_price_in_gs(orders_sh)
 
-        wilds_raw = orders_sh.col_values(headers.index('wild') + 1)[header_row_num:]
-        names_raw = orders_sh.col_values(headers.index('Модель') + 1)[header_row_num:]
-
-        orders_sh_wilds_lst = [[w, n] for w, n in zip(wilds_raw, names_raw)] # 23.10: вкл пустые строки для выгрузки в гугл
-
-        orders_sh_wilds = {i[0]:i[1] for i in orders_sh_wilds_lst if i[0]} # 23.10: убираем пустые строки для запроса в бд
-        orders_ids = list(orders_sh_wilds.keys())
-        purch_price = load_last_purch_price(orders_ids)
-
-        purch_dict = {d['local_vendor_code']: d['price_per_item'] for d in purch_price}
-
-        list_of_ordered_ids = [i[0] for i in orders_sh_wilds_lst]
-        result = [
-            [purch_dict.get(wild, 0)]
-            for wild in list_of_ordered_ids
-        ]
-
-        price_col_letter = column_number_to_letter(headers.index('Последняя цена рынок'))
-        orders_sh.update(result, range_name = f'{price_col_letter}{header_row_num + 1}:{price_col_letter}{orders_sh.row_count}')
-        logging.info("Successfully added purchase price to the sheet 'Заказы'")
+        new_sh = table.worksheet('Заказы белые ТЕСТ')
+        new_wilds = update_purchase_price_in_gs(new_sh)
         
     except Exception as e:
         logging.error(f"Failed to upload purchase price. Error:\n{e}")
@@ -304,14 +313,14 @@ if __name__ == "__main__":
 
         # ---- new part: get wilds from three tables ----
 
-        # Добавляем данные из Расчёта закупки
+        # # Добавляем данные из Расчёта закупки
         pro_client = gspread.service_account(filename=PRO_CREDS_PATH)
         purch_table = pro_client.open(PURCHASE_TABLE)
         market_res = load_unique_wilds_from_china(purch_table.worksheet('Рынок_сервис'))
         xiamoi_res = load_unique_wilds_from_china(purch_table.worksheet('Ксиоми_сервис'))
         logging.info('Retrieved wilds from three gs tables')
         
-        wilds_w_names = {**orders_sh_wilds, **market_res, **xiamoi_res} # {wild : name}
+        wilds_w_names = {**orders_sh_wilds, **new_wilds, **market_res, **xiamoi_res} # {wild : name}
         wilds = list(wilds_w_names.keys()) # just wilds names
 
         # ---- end of the new part: get wilds from three tables ----
@@ -390,7 +399,7 @@ if __name__ == "__main__":
             except Exception as e:
                 logging.error(f"Failed to add {metric_data['metric_ru']} to the range {output_range}, sheet {CHINA_ORDERS}:\n{e}")
 
-        # --- 6.11 fin order insert ---
+        # --- 6.11 переносим кол-во финального заказа в соответствующие ячейки ---
         output_wilds = [i['local_vendor_code'] for i in data]
         fin_order_output = [[fin_order_dct.get(i, '')] for i in output_wilds]
         fin_order_col_letter = column_number_to_letter(headers.index('Итоговый заказ'))
