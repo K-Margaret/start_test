@@ -203,6 +203,7 @@ def load_avg_purch_price(wilds = None):
         is_valid = TRUE
         {wilds_sql_row}
         AND supplier_name != 'РВБ ООО'
+        and quantity != 0
         AND supply_date >= CURRENT_DATE - INTERVAL '3 months'
     GROUP BY local_vendor_code
     HAVING SUM(quantity) > 0;
@@ -233,6 +234,7 @@ def load_last_purch_price(wilds = None):
     WHERE is_valid = True
         {wilds_sql_row}
         AND supplier_name != 'РВБ ООО'
+        and quantity != 0
     ORDER BY local_vendor_code, supply_date DESC
     '''
 
