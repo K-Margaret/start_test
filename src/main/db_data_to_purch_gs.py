@@ -143,7 +143,7 @@ def load_wb_supplies():
     LEFT JOIN wb_supplies ws 
         ON wsg.id = ws.id
     WHERE ws.create_date >= NOW() - INTERVAL '2 months'
-    ORDER BY wsg.id, wsg.vendor_code, ws.updated_date DESC, wsg.created_at DESC;;
+    ORDER BY wsg.id, wsg.vendor_code, ws.updated_date DESC, wsg.created_at DESC;
     '''
     return get_df_from_db(query)
 
