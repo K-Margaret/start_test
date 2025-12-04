@@ -10,8 +10,10 @@ import json
 import time
 import random
 import logging
-import pandas as pd
+import gspread
 import numpy as np
+import pandas as pd
+from datetime import date, timedelta
 from gspread.exceptions import APIError
 
 # my packages
@@ -29,6 +31,11 @@ from autopilot_hourly import parse_data_from_WB
 
 
 # ---- SET UP ----
+CREDS_PATH=os.getenv('CREDS_PATH')
+
+UNIT_TABLE = os.getenv("UNIT_TABLE")
+UNIT_MAIN_SHEET = os.getenv("UNIT_MAIN_SHEET")
+
 AUTOPILOT_TABLE_NAME = os.getenv("AUTOPILOT_TABLE_NAME")
 AUTOPILOT_SHEET_NAME = os.getenv("AUTOPILOT_SHEET_NAME")
 
@@ -506,6 +513,51 @@ def load_vendor_codes_info(filter_skus = None):
 
     return {i['nm_id']:{'local_vendor_code': i['local_vendor_code'], 'account': i['account']} for i in data}
 
+def load_db_orders():
+    query = '''
+    select
+        fd."date",
+        a.local_vendor_code,
+        sum(fd.order_count) as "orders_count"
+    from funnel_daily fd
+    left join article a
+        on fd.nm_id = a.nm_id
+    where fd."date" > now() - interval '31 days'
+        and fd."date" < current_date
+        and a.local_vendor_code like 'wild%'
+    group by fd."date", a.local_vendor_code
+    order by fd."date" desc
+    '''
+    df = db.get_df_from_db(query)
+
+    # Pivot without reset_index
+    pivot_df = df.pivot(index='local_vendor_code', columns='date', values='orders_count')
+
+    # Add yesterday column if missing
+    yesterday = date.today() - timedelta(days=1)
+    if yesterday not in pivot_df.columns:
+        pivot_df[yesterday] = 0
+
+    # Sort only the date columns descending
+    pivot_df = pivot_df.reindex(sorted(pivot_df.columns, reverse=True), axis=1).fillna(0)
+
+    return pivot_df.reset_index()
+
+def update_orders_sopost(sopost_sheet):
+    n_rows = sopost_sheet.row_count
+    wilds_ordered = sopost_sheet.col_values(5)[1:]
+
+    # df with columns: wild, date1, date2, ...
+    db_orders = load_db_orders()
+
+    db_dict = db_orders.set_index('local_vendor_code').T.to_dict('list')
+
+    empty_line = [0] * (len(next(iter(db_dict.values()))) if db_dict else 0)
+    output_list = [db_dict.get(i, empty_line) for i in wilds_ordered]
+
+    sopost_sheet.update(values = output_list, range_name=f"S2:AV{n_rows}")
+
+    logging.info('Successfully updated orders at the Sopost')
 
 if __name__ == "__main__":
 
@@ -596,20 +648,31 @@ if __name__ == "__main__":
     autopilot_adv_status = {int(key): 'реклама' if value > 0 else '' for key, value in autopilot_adv_status.items()}
 
     # connect to unit
-    unit_sh = my_gspread.connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
+    client = gspread.service_account(filename=CREDS_PATH)
+    unit_table = client.open(UNIT_TABLE)
+    unit_sh = unit_table.worksheet(UNIT_MAIN_SHEET)
+
+    # unit_sh = my_gspread.connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
     # unit_sh = my_gspread.connect_to_local_sheet('https://docs.google.com/spreadsheets/d/1Cpxi7HbND5JuDz18FzDcm6Kdx5Ks8THf80cWt4hwFtc/edit?gid=1686563401#gid=1686563401',
     #                                             'MAIN (tested)')
     
     unit_skus = my_gspread.get_skus_unit(unit_sh)
-    
-    # добавляем удалённые товары
     new_adv_status_sorted = process_adv_status(unit_sh, autopilot_adv_status, unit_skus)
     
     # отправляем данные в gs
     update_adv_status_in_unit(unit_sh, new_adv_status_sorted)
 
 
-    # 2. обновление отзывов
+    # 2. Обновление данных в Сопосте
+    try:
+        sopost_sh = unit_table.worksheet('Сопост')
+        update_orders_sopost(sopost_sh)
+    except Exception as e:
+        logging.info(f'Error while updating orders in Sopost: {e}')
+    
+
+
+    # 3. обновление отзывов
 
     logging.info('Updating the feedbacks in Unit')
 
