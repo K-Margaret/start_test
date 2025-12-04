@@ -13,7 +13,7 @@ from psycopg2.extras import execute_values
 
 from utils.logger import setup_logger
 from utils.utils import load_api_tokens
-from utils.my_db_functions import create_connection_w_env
+from utils.my_db_functions import create_connection_w_env, fetch_db_data_into_list
 
 # ---- LOGS ----
 logger = setup_logger("wb_supplies_to_db.log")
@@ -154,7 +154,7 @@ def get_multiple_supplies_goods(IDs: list, token: str, limit: int = 1000, is_pre
     Returns a combined list of dictionaries with 'ID' added.
     """
     all_results = []
-    count = 0
+    count = 1
     ids_num = len(IDs)
     for ID in IDs:
         print(f'{count}/{ids_num} processed')
@@ -328,6 +328,75 @@ async def process_client(client: str, token: str, conn):
         logger.error(f"Client {client} error: {e}")
         raise
 
+def load_existing_supplyids_wilds(conn):
+    query = '''
+    select
+        wsg.id,
+        wsg.vendor_code
+    from wb_supplies_goods wsg
+    '''
+    data = fetch_db_data_into_list(query)
+    grouped = {}
+
+    for key, value in data:
+        grouped.setdefault(key, []).append(value)
+
+    return grouped
+
+
+async def process_missing_data(client: str, token: str, conn, logger = logger):
+    supplies = await asyncio.to_thread(get_supplies_paginated, token)
+
+    time_ago = datetime.now() - timedelta(days=60) # last 2 months
+    supplies_ids = [
+        i['supplyID'] 
+        for i in supplies 
+        if i['supplyID'] and i.get('updatedDate') and datetime.fromisoformat(i['updatedDate'][:-6]) >= time_ago
+    ]
+
+    existing_data = load_existing_supplyids_wilds(conn) # {'supplyID : [list of wilds]}
+    existing_ids = set(existing_data.keys())
+
+    ids_to_process = list(set(supplies_ids).intersection(existing_ids))
+
+    n_data = len(ids_to_process)
+    logger.info(f'Started processing {n_data} supply ids for client {client}')
+
+    try:
+
+        for i, id in enumerate(ids_to_process):
+            supplies_goods = await asyncio.to_thread(get_supply_goods, id, token)
+            api_goods = [j['vendorCode'] for j in supplies_goods]
+            existing_goods = existing_data[id]
+
+            diff = set(api_goods).difference(set(existing_goods))
+            
+            if diff:
+                logger.info(f'Client {client}, id {id} found {len(diff)} missing supply ids: {diff}  {i + 1}/{n_data}')
+
+                insert_data = [j for j in supplies_goods if j['vendorCode'] in diff]
+                logger.info(f'Adding the following data for client {client} to the db table: {insert_data}')
+                # insert_wb_supplies_goods(insert_data, conn)
+            else:
+                logger.info(f'No missing data for client {client} id {id}               {i + 1}/{n_data}')
+
+            if id != ids_to_process[-1]:
+                await asyncio.sleep(2)
+
+    except Exception as e:
+        logger.error(f"Client {client} error: {e}")
+        raise
+
+async def process_missing_data_all_clients(logger = logger):
+    tokens = load_api_tokens()
+    conn = create_connection_w_env()
+
+    tasks = []
+    for client, token in tokens.items():
+        tasks.append(asyncio.create_task(process_missing_data(client, token, conn, logger)))
+
+    # run all clients concurrently
+    await asyncio.gather(*tasks)
 
 async def main():
     tokens = load_api_tokens()
