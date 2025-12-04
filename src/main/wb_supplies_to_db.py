@@ -362,9 +362,9 @@ async def process_missing_data(client: str, token: str, conn, logger = logger):
     n_data = len(ids_to_process)
     logger.info(f'Started processing {n_data} supply ids for client {client}')
 
-    try:
+    for i, id in enumerate(ids_to_process):
+        try:
 
-        for i, id in enumerate(ids_to_process):
             supplies_goods = await asyncio.to_thread(get_supply_goods, id, token)
             api_goods = [j['vendorCode'] for j in supplies_goods]
             existing_goods = existing_data[id]
@@ -381,11 +381,11 @@ async def process_missing_data(client: str, token: str, conn, logger = logger):
                 logger.info(f'No missing data for client {client} id {id}               {i + 1}/{n_data}')
 
             if id != ids_to_process[-1]:
-                await asyncio.sleep(2)
+                await asyncio.sleep(2.1)
 
-    except Exception as e:
-        logger.error(f"Client {client} error: {e}")
-        raise
+        except Exception as e:
+            logger.error(f"Client {client} id {id} error: {e}")
+
 
 async def process_missing_data_all_clients(logger = logger):
     tokens = load_api_tokens()
