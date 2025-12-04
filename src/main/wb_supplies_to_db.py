@@ -376,7 +376,7 @@ async def process_missing_data(client: str, token: str, conn, logger = logger):
 
                 insert_data = [j for j in supplies_goods if j['vendorCode'] in diff]
                 logger.info(f'Adding the following data for client {client} to the db table: {insert_data}')
-                # insert_wb_supplies_goods(insert_data, conn)
+                insert_wb_supplies_goods(insert_data, conn)
             else:
                 logger.info(f'No missing data for client {client} id {id}               {i + 1}/{n_data}')
 
