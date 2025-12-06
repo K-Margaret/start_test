@@ -9,6 +9,7 @@ from psycopg2.extras import execute_values
 
 from utils.logger import setup_logger
 from utils.utils import load_api_tokens
+# from utils.my_general import ensure_datetime
 from utils.my_db_functions import create_connection_w_env
 
 
@@ -78,7 +79,8 @@ def insert_advert_spend(data_list, conn):
             val = item.get(k)
             if k == "updTime" and val is not None:
                 # Convert ISO datetime string to Python datetime
-                val = datetime.fromisoformat(val.replace("Z", "+00:00"))
+                # val = datetime.fromisoformat(val.replace("Z", "+00:00"))
+                val = datetime.fromisoformat(val.split(".")[0])
             row[v] = val
         rows.append(row)
 
@@ -205,6 +207,7 @@ async def upload_all_data_async():
         tasks.append(process_client(client, token, start_date, end_date, max_chunk, conn))
 
     await asyncio.gather(*tasks)
+
 
 
 if __name__ == "__main__":
