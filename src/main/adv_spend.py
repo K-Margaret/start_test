@@ -16,7 +16,7 @@ from utils.my_db_functions import create_connection_w_env
 # ---- LOGS ----
 logger = setup_logger("adv_spend.log")
 
-DB_TABLE = 'adv_spend_new' # change
+DB_TABLE = 'advert_spend_new' # change
 
 
 def get_wb_adv_costs(token: str, date_from: str, date_to: str):
@@ -208,7 +208,29 @@ async def upload_all_data_async():
 
     await asyncio.gather(*tasks)
 
+# logic for uploading ALL data
+# if __name__ == "__main__":
+#     asyncio.run(upload_all_data_async())
 
+async def upload_data_for_range(start_date, end_date):
+    """
+    Process multiple clients concurrently for a specific date range.
+    Accepts datetime objects or 'yyyy-mm-dd' strings.
+    """
+    start_date = ensure_datetime(start_date)
+    end_date = ensure_datetime(end_date)
 
-if __name__ == "__main__":
-    asyncio.run(upload_all_data_async())
+    tokens = load_api_tokens()
+    conn = create_connection_w_env()
+    max_chunk = 31
+
+    tasks = []
+    for client, token in tokens.items():
+        # Optional: custom start dates for specific clients
+        client_start = start_date
+        if client in ['Старт2', 'Вектор2']:
+            client_start = max(start_date, datetime(2025, 9, 1))  # custom min date
+
+        tasks.append(process_client(client, token, client_start, end_date, max_chunk, conn))
+
+    await asyncio.gather(*tasks)
