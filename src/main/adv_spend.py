@@ -103,48 +103,6 @@ def insert_advert_spend(data_list, conn):
         conn.rollback()
         raise e
 
-
-# def upload_all_data():
-#     '''
-#     Функция выгружает ВСЕ данные, начиная с 2025-01-01, и сразу добавляет их в БД
-#     '''
-#     tokens = load_api_tokens()
-#     conn = create_connection_w_env()
-
-#     start_date = datetime(2025, 1, 1)
-#     end_date = datetime.today() - timedelta(days=1) # or fixed end date
-
-#     max_chunk = 31  # API max days per request
-
-#     for client, token in tokens.items():
-#         current_start = start_date
-#         while current_start <= end_date:
-#             current_end = min(current_start + timedelta(days=max_chunk-1), end_date)
-#             period = f"{current_start.strftime('%Y-%m-%d')}-{current_end.strftime('%Y-%m-%d')}"
-            
-#             try: 
-#                 data = get_wb_adv_costs(
-#                     token=token,
-#                     date_from=current_start.strftime("%Y-%m-%d"),
-#                     date_to=current_end.strftime("%Y-%m-%d")
-#                 )
-#                 ids = set([i['advertId'] for i in data])
-#                 if data:
-#                     logger.info(f"Successfully retrieved {len(data)} for {client}, {period}, ids: {ids}")
-                
-#                 for item in data:
-#                     item['account'] = client
-
-#                 insert_advert_spend(data, conn)
-#                 logger.info(f"Successfully added data for {client}, {period} to DB")
-#             except Exception as e:
-#                 logger.error(f"Error for client {client} period {period}: {e}")
-
-#             # move to next chunk
-#             current_start = current_end + timedelta(days=1)
-    
-#     conn.close()
-
 async def process_client(client: str, token: str, start_date: datetime, end_date: datetime, max_chunk: int, conn):
     """
     Process all data for a single client asynchronously, slicing into chunks.
