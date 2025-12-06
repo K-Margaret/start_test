@@ -2,6 +2,16 @@ import json
 from decimal import Decimal
 from collections import defaultdict
 import logging
+from datetime import datetime
+
+def ensure_datetime(d):
+    """Convert string 'yyyy-mm-dd' to datetime, or return datetime as-is."""
+    if isinstance(d, datetime):
+        return d
+    elif isinstance(d, str):
+        return datetime.strptime(d, "%Y-%m-%d")
+    else:
+        raise ValueError(f"Invalid date: {d}")
 
 def dict_to_json(dictionary, filename):
     with open(filename, 'w') as json_file:

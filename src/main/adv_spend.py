@@ -9,7 +9,7 @@ from psycopg2.extras import execute_values
 
 from utils.logger import setup_logger
 from utils.utils import load_api_tokens
-# from utils.my_general import ensure_datetime
+from utils.my_general import ensure_datetime
 from utils.my_db_functions import create_connection_w_env
 
 
@@ -208,33 +208,33 @@ async def upload_all_data_async():
 
     await asyncio.gather(*tasks)
 
-# logic for uploading ALL data
-if __name__ == "__main__":
-    asyncio.run(upload_all_data_async())
-
-
-# async def upload_data_for_range(start_date, end_date):
-#     """
-#     Process multiple clients concurrently for a specific date range.
-#     Accepts datetime objects or 'yyyy-mm-dd' strings.
-#     """
-#     start_date = ensure_datetime(start_date)
-#     end_date = ensure_datetime(end_date)
-
-#     tokens = load_api_tokens()
-#     conn = create_connection_w_env()
-#     max_chunk = 31
-
-#     tasks = [
-#         process_client(client, token, start_date, end_date, max_chunk, conn)
-#         for client, token in tokens.items()
-#     ]
-
-#     await asyncio.gather(*tasks)
-
+# # logic for uploading ALL data
 # if __name__ == "__main__":
-#     # dynamically get yesterday
-#     yesterday = datetime.today() - timedelta(days=1)
+#     asyncio.run(upload_all_data_async())
+
+
+async def upload_data_for_range(start_date, end_date):
+    """
+    Process multiple clients concurrently for a specific date range.
+    Accepts datetime objects or 'yyyy-mm-dd' strings.
+    """
+    start_date = ensure_datetime(start_date)
+    end_date = ensure_datetime(end_date)
+
+    tokens = load_api_tokens()
+    conn = create_connection_w_env()
+    max_chunk = 31
+
+    tasks = [
+        process_client(client, token, start_date, end_date, max_chunk, conn)
+        for client, token in tokens.items()
+    ]
+
+    await asyncio.gather(*tasks)
+
+if __name__ == "__main__":
+    # dynamically get yesterday
+    yesterday = datetime.today() - timedelta(days=1)
     
-#     # call async function for yesterday only
-#     asyncio.run(upload_data_for_range(yesterday, yesterday))
+    # call async function for yesterday only
+    asyncio.run(upload_data_for_range(yesterday, yesterday))
