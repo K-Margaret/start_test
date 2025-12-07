@@ -89,7 +89,7 @@ def insert_advert_spend(data_list, conn):
     sql = f"""
         INSERT INTO {DB_TABLE} ({', '.join(columns)})
         VALUES %s
-        ON CONFLICT (upd_time, advert_id) DO NOTHING
+        --ON CONFLICT (upd_time, advert_id) DO NOTHING
     """
 
     # Prepare data for execute_values
