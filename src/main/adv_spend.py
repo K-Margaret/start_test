@@ -16,7 +16,7 @@ from utils.my_db_functions import create_connection_w_env
 # ---- LOGS ----
 logger = setup_logger("adv_spend.log")
 
-DB_TABLE = 'advert_spend_new' # change
+DB_TABLE = 'adv_spend_new' # change
 
 
 def get_wb_adv_costs(token: str, date_from: str, date_to: str):
@@ -166,9 +166,9 @@ async def upload_all_data_async():
 
     await asyncio.gather(*tasks)
 
-# # logic for uploading ALL data
-# if __name__ == "__main__":
-#     asyncio.run(upload_all_data_async())
+# logic for uploading ALL data
+if __name__ == "__main__":
+    asyncio.run(upload_all_data_async())
 
 
 async def upload_data_for_range(start_date, end_date):
@@ -190,9 +190,9 @@ async def upload_data_for_range(start_date, end_date):
 
     await asyncio.gather(*tasks)
 
-if __name__ == "__main__":
-    # dynamically get yesterday
-    yesterday = datetime.today() - timedelta(days=1)
+# if __name__ == "__main__":
+#     # dynamically get yesterday
+#     yesterday = datetime.today() - timedelta(days=1)
     
-    # call async function for yesterday only
-    asyncio.run(upload_data_for_range(yesterday, yesterday))
+#     # call async function for yesterday only
+#     asyncio.run(upload_data_for_range(yesterday, yesterday))
