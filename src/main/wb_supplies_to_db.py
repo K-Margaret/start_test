@@ -231,7 +231,7 @@ def insert_wb_supplies_to_db(records, conn):
     query = f"""
         INSERT INTO wb_supplies ({col_names_sql})
         VALUES %s
-        ON CONFLICT (id, updated_date) DO NOTHING;
+        ON CONFLICT (id, updated_date, ready_for_sale_quantity, accepted_quantity, unloading_quantity) DO NOTHING;
     """
 
     with conn.cursor() as cur:
@@ -304,12 +304,14 @@ async def process_client(client: str, token: str, conn):
     # supplies_ids = [i['supplyID'] for i in supplies if i['supplyID']]
 
     # вариант 2 - берем supplyID, по которым есть изменения ('updatedDate') за последний день
-    one_week_ago = datetime.now() - timedelta(days=1)
+    one_week_ago = datetime.now() - timedelta(days=60)
     supplies_ids = [
         i['supplyID'] 
         for i in supplies 
         if i['supplyID'] and i.get('updatedDate') and datetime.fromisoformat(i['updatedDate'][:-6]) >= one_week_ago
     ]
+
+    logger.info(f'Found {len(supplies_ids)} ids for client {client}')
 
     try:
 
@@ -347,7 +349,7 @@ def load_existing_supplyids_wilds(conn):
 async def process_missing_data(client: str, token: str, conn, logger = logger):
     supplies = await asyncio.to_thread(get_supplies_paginated, token)
 
-    time_ago = datetime.now() - timedelta(days=60) # last 2 months
+    time_ago = datetime.now() - timedelta(days=30) # last month
     supplies_ids = [
         i['supplyID'] 
         for i in supplies 
