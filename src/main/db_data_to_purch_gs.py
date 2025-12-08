@@ -7,9 +7,10 @@ import pandas as pd
 
 # from utils.my_gspread import connect_to_local_sheet
 
-from utils.logger import setup_logger
 from utils.my_db_functions import get_df_from_db
 from utils.my_gspread import init_client
+from utils.logger import setup_logger
+from utils.my_pandas import format_datetime
 from utils.env_loader import *
 
 logger = setup_logger("db_data_to_purch_gs.log")
@@ -147,6 +148,39 @@ def load_wb_supplies():
     '''
     return get_df_from_db(query)
 
+
+def load_orders_by_regions(logger = logger):
+
+    query = '''
+    SELECT
+        date as "Дата",
+        article_id as "Артикул",
+        region_name as "Регион",
+        COUNT(is_realization) as "Количество заказов"
+    FROM orders o
+    WHERE "date" = CURRENT_DATE - 30
+    GROUP BY date,
+        article_id,
+        region_name
+    ORDER BY
+        article_id;
+    '''
+    
+    data = get_df_from_db(query)
+    clean_data = format_datetime(data, ["Дата"])
+
+    return clean_data
+
+def update_orders_by_regions(client, logger = logger):
+    _regions_sh = client.open('Отгрузка ФБО').worksheet('Заказы_Регионы')
+    _db_data = load_orders_by_regions()
+    _gs_output = [_db_data.columns.tolist()] + _db_data.values.tolist()
+    _regions_sh.update(values = _gs_output, range_name = 'A2')
+    _regions_sh.update(
+        values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
+        range_name='A1'
+    )
+    logger.info('Данные успешно добавлены на лист Заказы_Регионы')
 
 if __name__ == "__main__":
     

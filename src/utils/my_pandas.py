@@ -81,3 +81,17 @@ def datetime_to_str(df, datetime_format="%d.%m.%Y %H:%M:%S"):
     for col in datetime_cols:
         df_copy[col] = df_copy[col].dt.strftime(datetime_format).fillna('')
     return df_copy
+
+def format_datetime(df, datetime_cols):
+    if not isinstance(datetime_cols, list):
+        datetime_cols = [datetime_cols]
+
+    data = df.copy()
+    for col in datetime_cols:
+        if col in data.columns:
+            data[col] = data[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
+            data[col] = pd.to_datetime(data[col], errors='coerce')
+            data[col] = data[col].dt.strftime('%d.%m.%Y')
+            data[col] = data[col].fillna('')
+            
+    return data
