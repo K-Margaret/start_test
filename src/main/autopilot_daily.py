@@ -9,7 +9,6 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import json
 import time
 import random
-import logging
 import gspread
 import numpy as np
 import pandas as pd
@@ -17,16 +16,18 @@ from datetime import date, timedelta
 from gspread.exceptions import APIError
 
 # my packages
-from utils.env_loader import *
+from db_data_to_purch_gs import update_orders_by_regions
+from autopilot_hourly import parse_data_from_WB
+from utils.my_gspread import init_client
 from utils import my_pandas, my_gspread
 from utils import my_db_functions as db
-
-from autopilot_hourly import parse_data_from_WB
+from utils.logger import setup_logger
+from utils.env_loader import *
 
 
 # tasks:
 # 1. change structure to server-acceptable 
-# 2. add logging
+# 2. add logger
 
 
 
@@ -122,17 +123,7 @@ METRIC_TO_COL = {
 
 # ---- LOGS ----
 LOGS_PATH = os.getenv("LOGS_PATH")
-
-os.makedirs(LOGS_PATH, exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(f"{LOGS_PATH}/autopilot_daily.log", encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-
+logger = setup_logger("autopilot_daily.log")
 
 
 def load_data(rename = True):
@@ -271,7 +262,7 @@ def push_data(df, headers, col_num, articles_sorted, values_first_row, sh_len, p
     absent_metrics = set(cols) - set(headers)
 
     if absent_metrics:
-        logging.warning(f'\nСледующие метрики отсутствуют в таблице:\n{absent_metrics}\n')
+        logger.warning(f'\nСледующие метрики отсутствуют в таблице:\n{absent_metrics}\n')
     
     present_metrics = list(set(cols) - set(absent_metrics))
     
@@ -297,24 +288,24 @@ def push_data(df, headers, col_num, articles_sorted, values_first_row, sh_len, p
 
                 metric_range = my_gspread.define_range(metric, headers, col_num, values_first_row, sh_len)
                 my_gspread.add_data_to_range(sh, temp_df, metric_range)
-                logging.info(f'Данные по "{metric}" успешно добавлены в диапазон {metric_range}')
+                logger.info(f'Данные по "{metric}" успешно добавлены в диапазон {metric_range}')
                 break
                 
             except APIError as e:
                 if e.response.status_code == 429:
                     retry_count += 1
                     if retry_count >= max_retries:
-                        logging.error(f'Достигнуто максимальное количество попыток для метрики "{metric}"')
+                        logger.error(f'Достигнуто максимальное количество попыток для метрики "{metric}"')
                         break
                     wait_time = random.uniform(1, 5) * retry_count
-                    logging.error(f'Превышен лимит запросов. Попытка {retry_count}/{max_retries} через {wait_time:.1f} сек...')
+                    logger.error(f'Превышен лимит запросов. Попытка {retry_count}/{max_retries} через {wait_time:.1f} сек...')
                     time.sleep(wait_time)
                 else:
-                    logging.error(f'Ошибка API при загрузке "{metric}":\n{e}')
+                    logger.error(f'Ошибка API при загрузке "{metric}":\n{e}')
                     break
                     
             except Exception as e:
-                logging.error(f'Неизвестная ошибка при загрузке "{metric}":\n{e}')
+                logger.error(f'Неизвестная ошибка при загрузке "{metric}":\n{e}')
                 break
 
 
@@ -357,7 +348,7 @@ def update_adv_status_in_unit(unit_sh, adv_dict):
     output_data = [[adv_dict[key]] for key in adv_dict]
     output_range = my_gspread.define_range('Реклама', unit_sh.row_values(1), number_of_columns=1, values_first_row=2, sh_len = unit_sh.row_count)
     my_gspread.add_data_to_range(unit_sh, output_data, output_range, False)
-    logging.info(f'Статус рекламы успешно добавлен в диапазон {output_range}')
+    logger.info(f'Статус рекламы успешно добавлен в диапазон {output_range}')
 
 
 def load_and_update_feedbacks_unit(unit_sh, unit_skus):
@@ -379,7 +370,7 @@ def push_data_static_range(df, headers, col_num, articles_sorted, values_first_r
     absent_metrics = set(cols) - set(METRIC_TO_COL.keys())
     
     if absent_metrics:
-        logging.warning(f'\nСледующие метрики не имеют статического диапазона и будут пропущены:\n{absent_metrics}\n')
+        logger.warning(f'\nСледующие метрики не имеют статического диапазона и будут пропущены:\n{absent_metrics}\n')
     
     present_metrics = list(set(cols) - set(absent_metrics))
     
@@ -413,24 +404,24 @@ def push_data_static_range(df, headers, col_num, articles_sorted, values_first_r
 
                 # Push data (assumes my_gspread.add_data_to_range iss available)
                 my_gspread.add_data_to_range(sh, temp_df, metric_range, clean_range=False)
-                logging.info(f'Данные по "{metric}" успешно добавлены в диапазон {metric_range}')
+                logger.info(f'Данные по "{metric}" успешно добавлены в диапазон {metric_range}')
                 break
                 
             except APIError as e:
                 if e.response.status_code == 429:
                     retry_count += 1
                     if retry_count >= max_retries:
-                        logging.warning(f'Достигнуто максимальное количество попыток для метрики "{metric}"')
+                        logger.warning(f'Достигнуто максимальное количество попыток для метрики "{metric}"')
                         break
                     wait_time = random.uniform(1, 5) * retry_count
-                    logging.warning(f'Превышен лимит запросов. Попытка {retry_count}/{max_retries} через {wait_time:.1f} сек...')
+                    logger.warning(f'Превышен лимит запросов. Попытка {retry_count}/{max_retries} через {wait_time:.1f} сек...')
                     time.sleep(wait_time)
                 else:
-                    logging.error(f'Ошибка API при загрузке "{metric}":\n{e}')
+                    logger.error(f'Ошибка API при загрузке "{metric}":\n{e}')
                     break
                     
             except Exception as e:
-                logging.error(f'Неизвестная ошибка при загрузке "{metric}":\n{e}')
+                logger.error(f'Неизвестная ошибка при загрузке "{metric}":\n{e}')
                 break
 
 
@@ -557,7 +548,7 @@ def update_orders_sopost(sopost_sheet):
 
     sopost_sheet.update(values = output_list, range_name=f"S2:AV{n_rows}")
 
-    logging.info('Successfully updated orders at the Sopost')
+    logger.info('Successfully updated orders at the Sopost')
 
 if __name__ == "__main__":
 
@@ -594,10 +585,10 @@ if __name__ == "__main__":
     # ----- 3. обработка данных -----
 
     push_data_static_range(curr_data, curr_headers, col_num, articles_sorted, values_first_row, sh_len, pivot = True)
-    logging.info('Данные за последнюю неделю успешно добавлены.\n')
+    logger.info('Данные за последнюю неделю успешно добавлены.\n')
 
     push_data_static_range(hist_data, hist_headers, 1, articles_sorted, values_first_row, sh_len, pivot = False)
-    logging.info('Более ранние данные успешно добавлены.\n')
+    logger.info('Более ранние данные успешно добавлены.\n')
 
 
     # ----- 4. средняя позиция -----
@@ -613,7 +604,7 @@ if __name__ == "__main__":
     hist_range = f'IP4:IP{sh_len}'
     my_gspread.add_data_to_range(sh, hist_output, hist_range)
 
-    logging.info('Данные по средним позициям выгружены')
+    logger.info('Данные по средним позициям выгружены')
 
 
     # ----- 5. Обновление вилдов и клиентов -----
@@ -623,10 +614,10 @@ if __name__ == "__main__":
     accounts = [[str(info[i].get('account', '')).upper()] for i in articles_sorted if i in info]
     
     sh.update(values = vendorcodes, range_name = f"{METRIC_TO_COL['wild_col']}{values_first_row}:{METRIC_TO_COL['wild_col']}{sh_len}")
-    logging.info('Информация по вилдам успешно обновлена')
+    logger.info('Информация по вилдам успешно обновлена')
 
     sh.update(values = accounts, range_name = f"{METRIC_TO_COL['client_col']}{values_first_row}:{METRIC_TO_COL['client_col']}{sh_len}")
-    logging.info('Информация по кабинетам успешно обновлена')
+    logger.info('Информация по кабинетам успешно обновлена')
 
 
 
@@ -636,7 +627,7 @@ if __name__ == "__main__":
 
     # 1. обновление статуса рекламы
 
-    logging.info('Updating the adv_status in Unit')
+    logger.info('Updating the adv_status in Unit')
 
     # take yesterday's adv spend data {sku: 'реклама', sku1: ''}
     df_cut_adv_status = curr_data[curr_data['date'] == max(curr_data['date'])][['date', 'article_id', 'Сумма затрат']]
@@ -668,14 +659,22 @@ if __name__ == "__main__":
         sopost_sh = unit_table.worksheet('Сопост')
         update_orders_sopost(sopost_sh)
     except Exception as e:
-        logging.info(f'Error while updating orders in Sopost: {e}')
+        logger.error(f'Error while updating orders in Sopost: {e}')
+
+    
+    # 3. Обновление заказов по регионам в таблице Отгрузки ФБО
+    try:
+        client = init_client()
+        update_orders_by_regions(client, logger=logger)
+    except Exception as e:
+        logger.error(f'Ошибка при обновлении данных в таблице Отгрузки ФБО: {e}')
     
 
 
-    # 3. обновление отзывов
+    # 4. обновление отзывов
 
-    logging.info('Updating the feedbacks in Unit')
+    logger.info('Updating the feedbacks in Unit')
 
     load_and_update_feedbacks_unit(unit_sh, unit_skus)
 
-    logging.info('Выполнение скрипта завершено')
+    logger.info('Выполнение скрипта завершено')
