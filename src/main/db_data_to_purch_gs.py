@@ -158,7 +158,7 @@ def load_orders_by_regions(logger = logger):
         region_name as "Регион",
         COUNT(is_realization) as "Количество заказов"
     FROM orders o
-    WHERE "date" = CURRENT_DATE - 30
+    WHERE "date" >= CURRENT_DATE - 10
     GROUP BY date,
         article_id,
         region_name
