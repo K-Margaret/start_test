@@ -6,6 +6,7 @@ import os
 import asyncio
 import requests
 import pandas as pd
+from itertools import zip_longest
 from datetime import datetime, timedelta
 
 from utils.logger import setup_logger
@@ -32,45 +33,28 @@ def get_wb_remains(api_token, date):
     return result
 
 
-def load_data_from_unit(clip_remains = True):
-    '''
-    Arguments:
-        clip_remains: if True, sets negative remains to 0
+def load_data_from_sopost():
+    sopost_sh = connect_to_remote_sheet('UNIT 2.0 (tested)', 'Сопост')
+    unit_headers = sopost_sh.row_values(1)
 
-    Result:
-        Data from Unit with columns 'wild', 'Название', 'Предмет', 'Стоимость в закупке', 'Остаток склада факт' for unique wilds
-    '''
-    # остатки и себестоимость из юнитки
-    unit_sh = connect_to_remote_sheet('UNIT 2.0 (tested)', 'MAIN (tested)')
+    wild_col = sopost_sh.col_values(unit_headers.index('wild') + 1)[1:]
+    name_col = sopost_sh.col_values(unit_headers.index('Наименование') + 1)[1:]
+    cat_col = sopost_sh.col_values(unit_headers.index('предмет') + 1)[1:]
+    purch_price_col = sopost_sh.col_values(unit_headers.index('Стоимость в закупке (руб.)') + 1)[1:]
 
-    # Get headers and data columns
-    unit_headers = unit_sh.row_values(1)
-    wild_col = unit_sh.col_values(unit_headers.index('wild') + 1)[1:]
-    name_col = unit_sh.col_values(unit_headers.index('Название') + 1)[1:]
-    cat_col = unit_sh.col_values(unit_headers.index('Предмет') + 1)[1:]
-    purch_price_col = unit_sh.col_values(unit_headers.index('Стоимость в закупке (руб.)') + 1)[1:]
-    remains = unit_sh.col_values(unit_headers.index('Остаток ФАКТ СКЛАД') + 1)[1:]
-
-    # Build list of rows
     data = []
-    for w, n, c, p, r in zip(wild_col, name_col, cat_col, purch_price_col, remains):
+    for w, n, c, p in zip_longest(wild_col, name_col, cat_col, purch_price_col):
         data.append({
             'item': w,
             'name': n,
             'category': c,
-            'purchase_price': float(clean_number(p)) if p else 0.0,
-            'remains': int(r) if r else 0
+            'purchase_price': float(clean_number(p)) if p else 0.0
         })
 
-    # Create DataFrame
-    unit_df = pd.DataFrame(data)
+    df = pd.DataFrame(data)
+    df_clean = df.drop_duplicates()
+    return df_clean
 
-    unit_df_clean = unit_df.drop_duplicates()
-
-    if clip_remains:
-        unit_df_clean['remains'] = unit_df_clean['remains'].clip(lower=0)
-    
-    return unit_df_clean
 
 def load_current_balances():
     data = fetch_db_data_into_dict('''
@@ -149,20 +133,45 @@ if __name__ == "__main__":
         .sort_index(axis=1).fillna(0)
 
         # 2. load data from unit
-        unit_data = load_data_from_unit()
+        unit_data = load_data_from_sopost()
         unit_data = unit_data.drop_duplicates('item')
         unit_data = unit_data.rename(columns = {'item': 'wild',
                                             'name': 'Название',
                                             'category': 'Категория', 
-                                            'purchase_price': 'Себестоимость',
-                                            'remains': 'Остаток факт склад'})
-
+                                            'purchase_price': 'Себестоимость'})
 
         # 3. map
-        info_dict = unit_data.set_index('wild')[['Название', 'Категория', 'Себестоимость', 'Остаток факт склад']].to_dict('index')
+        info_dict = unit_data.set_index('wild')[['Название', 'Категория', 'Себестоимость']].to_dict('index')
 
-        for col in ['Название', 'Категория', 'Себестоимость', 'Остаток факт склад']:
+        for col in ['Название', 'Категория', 'Себестоимость']:
             final_df[col] = final_df.index.map(lambda x: info_dict.get(x, {}).get(col))
+
+
+        # add logic with current_balances
+        current_balances = load_current_balances()
+        final_df[('Остаток факт склад', '')] = final_df.index.map(lambda x: current_balances.get(x, 0))
+
+       # --- 3b. add unit-only wilds that are missing from final_df ---
+        missing_wilds = list(set(unit_data['wild']) - set(final_df.index))
+
+        if missing_wilds:
+            # create a DataFrame with same columns as final_df
+            extra_rows = pd.DataFrame(
+                0,
+                index=missing_wilds,
+                columns=final_df.columns
+            )
+            
+            # fill unit info columns (with correct MultiIndex tuples)
+            for col in [('Название',''), ('Категория',''), ('Себестоимость','')]:
+                extra_rows[col] = extra_rows.index.map(lambda x: info_dict.get(x, {}).get(col[0]))
+            
+            # fill current balances column
+            extra_rows[('Остаток факт склад','')] = extra_rows.index.map(lambda x: current_balances.get(x, 0))
+            
+            # append to final_df
+            final_df = pd.concat([final_df, extra_rows], axis=0)
+
 
         # 4. reorder
         cols_to_front = [
@@ -175,16 +184,14 @@ if __name__ == "__main__":
         remaining_cols = [col for col in final_df.columns if col not in cols_to_front]
         final_df = final_df[cols_to_front + remaining_cols]
 
-        # 5. upload to gs
-
-        # add logic with current_balances
-        current_balances = load_current_balances()
-        final_df[('Остаток факт склад', '')] = final_df.index.map(lambda x: current_balances.get(x, 0))
-
 
         final_df = final_df.fillna(0)
-
         final_df_reset = final_df.reset_index()
+        final_df_reset = final_df.reset_index().rename(columns={'index': 'wild'})
+
+        # final_df_reset.to_excel('test.xlsx')
+
+        # 5. upload to gs
         level0 = final_df_reset.columns.get_level_values(0).tolist()  # e.g., 'Вектор', 'Даниелян', ...
         level1 = final_df_reset.columns.get_level_values(1).tolist()  # e.g., 'Едут к клиенту', ...
         header_row_1 = level0
@@ -199,7 +206,7 @@ if __name__ == "__main__":
         sh.update(values, range_name=output_range)
         sh.update([[f'Актуализировано на {datetime.now().strftime("%d.%m.%Y %H:%M")}']], range_name = 'B1')
 
-        logger.info('Successfully updated the gs table')
+        # logger.info('Successfully updated the gs table')
     
     except Exception as e:
         logger.error(str(e))
