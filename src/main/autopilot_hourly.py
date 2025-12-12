@@ -102,106 +102,6 @@ logging.basicConfig(
 
 
 
-# ---- FUNCTIONS ----
-
-# deprecated method
-# def get_fun(account: str, api_token: str, nmIDs: list):
-#     logging.info(f"Начало обработки аккаунта {account}")
-#     url = 'https://seller-analytics-api.wildberries.ru/api/v2/nm-report/detail' 
-#     headers = {'Authorization': api_token}
-#     my_date = datetime.now()
-#     hour = int(datetime.now().strftime('%H'))
-#     begin = my_date.replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
-#     end = my_date.replace(hour=hour, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
-#     payload = {
-#         "brandNames": [],
-#         "objectIDs": [],
-#         "tagIDs": [],
-#         "nmIDs": nmIDs,
-#         "timezone": "Europe/Moscow",
-#         "period": {"begin": begin, "end": end},
-#         "orderBy": {"field": "ordersSumRub", "mode": "asc"},
-#         "page": 1
-#     }
-
-#     max_retries = 5
-#     base_delay = 10
-#     retry_count = 0
-    
-
-#     while retry_count < max_retries:
-#         try:
-#             logging.info(f"Попытка {retry_count + 1} для аккаунта {account}")
-#             start_time = time.time()
-#             res = requests.post(url=url, headers=headers, json=payload, timeout=30)
-#             logging.info(f"Ответ от API для {account} получен за {time.time() - start_time:.2f} сек.")
-
-#             if res.status_code != 200:
-#                 logging.warning(f"Код ответа {res.status_code} для {account}.")
-#                 delay = min(base_delay * (2 ** retry_count), 60)
-#                 sleep(delay)
-#                 retry_count += 1
-#                 continue
-
-#             try:
-#                 data = res.json()
-#                 if not data.get('data', {}).get('cards'):
-#                     logging.warning(f"Пустые данные для {account}")
-#                     return pd.DataFrame()
-                
-#                 data['account'] = account
-#                 df = pd.DataFrame(data['data']['cards'])
-                
-#                 if df.empty:
-#                     logging.warning(f"Пустой DataFrame для {account}")
-#                     return df
-                    
-#                 logging.info(f"Успешно получено {len(df)} карточек для {account}")
-                
-#                 df['name'] = df['object'].apply(lambda x: x['name'])
-#                 df['date'] = df['statistics'].apply(lambda x: x['selectedPeriod']['end'])
-#                 df['date'] = pd.to_datetime(df['date']).dt.date
-#                 df['openCardCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['openCardCount'])
-#                 df['addToCartCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['addToCartCount'])
-#                 df['ordersCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['ordersCount'])
-#                 df['ordersSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['ordersSumRub'])
-#                 df['buyoutsCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['buyoutsCount'])
-#                 df['buyoutsSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['buyoutsSumRub'])
-#                 df['cancelCount'] = df['statistics'].apply(lambda x: x['selectedPeriod']['cancelCount'])
-#                 df['cancelSumRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['cancelSumRub'])
-#                 df['avgPriceRub'] = df['statistics'].apply(lambda x: x['selectedPeriod']['avgPriceRub'])
-#                 df['avgOrdersCountPerDay'] = df['statistics'].apply(lambda x: x['selectedPeriod']['avgOrdersCountPerDay'])
-#                 df['conversions'] = df['statistics'].apply(lambda x: x['selectedPeriod']['conversions'])
-#                 df['addToCartPercent'] = df['conversions'].apply(lambda x: x['addToCartPercent'])
-#                 df['cartToOrderPercent'] = df['conversions'].apply(lambda x: x['cartToOrderPercent'])
-#                 df['buyoutsPercent'] = df['conversions'].apply(lambda x: x['buyoutsPercent'])
-#                 df['stocksMp'] = df['stocks'].apply(lambda x: x['stocksMp'])
-#                 df['stocksWb'] = df['stocks'].apply(lambda x: x['stocksWb'])
-#                 pattern = r'(wild\d+)'
-#                 df['wild'] = df['vendorCode'].str.extract(pattern)
-#                 df['account'] = account
-#                 df = df.drop(columns=['object', 'statistics', 'stocks', 'conversions', 'vendorCode'])
-#                 return df
-#             except json.JSONDecodeError as e:
-#                 logging.error(f"Ошибка JSON для {account}: {e}")
-#                 logging.debug(f"Ответ сервера: {res.text[:200]}...")
-#                 delay = min(base_delay * (2 ** retry_count), 60)  # максимум 60 сек
-#                 logging.info(f"Повтор через {delay} сек...")
-#                 sleep(delay)
-#                 retry_count += 1
-#                 continue
-                
-#         except requests.exceptions.RequestException as e:
-#             logging.error(f"Ошибка запроса для {account}: {e} параметры - {payload}")
-#             delay = min(base_delay * (2 ** retry_count), 60)  # максимум 60 сек
-#             logging.info(f"Повтор через {delay} сек...")
-#             sleep(delay)
-#             retry_count += 1
-    
-#     logging.error(f"Не удалось получить данные для {account} после {max_retries} попыток")
-#     return pd.DataFrame()
-
-
 def get_fun(account: str, api_token: str, nmIDs: list):
     logging.info(f"Начало обработки аккаунта {account}")
     url = 'https://seller-analytics-api.wildberries.ru/api/analytics/v3/sales-funnel/products'
@@ -406,6 +306,74 @@ def get_full_prices_from_API_WB(filter_articles = None):
 
 
 
+# def parse_data_from_WB(articles, return_keys=None, handle_nested_keys=None, show_errors = False):
+#     '''
+#     Получает данные товаров с WB по артикулам. Возвращает:
+#     - При return_keys: {артикул: [значения, 'ключей']}
+#     - Без return_keys: полные данные products[0]
+#     Поддержка вложенных полей: handle_nested_keys=[['путь', 'к', 'полю']]
+#     Пример: [['sizes', 0, 'price']] → data['sizes'][0]['price']
+#     '''
+    
+#     url = 'https://card.wb.ru/cards/v2/detail'
+#     params = {
+#         'dest': -1255987
+#     }
+    
+#     result = {}
+#     not_found = 0
+#     for art in articles:
+#         try:
+#             params['nm'] = art
+#             response = requests.get(url, params=params)
+#             response.raise_for_status()
+
+#             js = response.json()['data']['products'][0]
+
+#             if return_keys:
+#                 art_values = []
+
+#                 for key in return_keys:
+#                     value = js.get(key, None)
+
+#                     # если есть вложенные ключи
+#                     if handle_nested_keys:
+#                         for path in handle_nested_keys:
+
+#                             # если ключ был передан в handle_nested_keys [aka указаны вложенности]
+#                             if path[0] == key:
+#                                 try:
+#                                     nested_value = js
+#                                     for nest in path:
+#                                         nested_value = nested_value[nest] 
+#                                     value = nested_value
+#                                 except Exception as e:
+#                                     value = None
+#                                     if show_errors:
+#                                         logging.error(f'Вложенное значение {key} для артикула {art} не существует. Возвращено None. Ошибка: {e}')
+                    
+#                     art_values.append(value)
+                
+#                 result[art] = art_values
+            
+#             # если ключи не заданы, возвращает весь ответ
+#             else:
+#                 result[art] = js
+
+#         except (IndexError, KeyError):
+#             # print(f'Товар с артикулом {art} не найден или отсутствуют данные')
+#             not_found += 1
+#             result[art] = [None] * len(return_keys) if return_keys else None
+#         except Exception as e:
+#             # print(f'Возникла проблема при парсинге данных по артикулу {art} с сайта WB: {e}')
+#             not_found += 1
+#             result[art] = [None] * len(return_keys) if return_keys else None
+
+#     logging.info(f'Найдены данные для {len(articles) - not_found} из {len(articles)} артикулов.')
+
+#     return result
+
+
 def parse_data_from_WB(articles, return_keys=None, handle_nested_keys=None, show_errors = False):
     '''
     Получает данные товаров с WB по артикулам. Возвращает:
@@ -415,20 +383,26 @@ def parse_data_from_WB(articles, return_keys=None, handle_nested_keys=None, show
     Пример: [['sizes', 0, 'price']] → data['sizes'][0]['price']
     '''
     
-    url = 'https://card.wb.ru/cards/v2/detail'
+    url = "https://card.wb.ru/cards/v4/detail"
     params = {
-        'dest': -1255987
+        "appType": 1,
+        "curr": "rub",
+        "dest": -1255987,
+        "spp": 30,
+        "hide_vflags": 4294967296,
+        "hide_dtype": "9;11",
+        "ab_testing": "false"
     }
     
     result = {}
     not_found = 0
     for art in articles:
         try:
-            params['nm'] = art
+            params["nm"] = art
             response = requests.get(url, params=params)
             response.raise_for_status()
 
-            js = response.json()['data']['products'][0]
+            js = response.json()['products'][0]
 
             if return_keys:
                 art_values = []
@@ -450,7 +424,8 @@ def parse_data_from_WB(articles, return_keys=None, handle_nested_keys=None, show
                                 except Exception as e:
                                     value = None
                                     if show_errors:
-                                        logging.error(f'Вложенное значение {key} для артикула {art} не существует. Возвращено None. Ошибка: {e}')
+                                        # logging.error(f'Вложенное значение {key} для артикула {art} не существует. Возвращено None. Ошибка: {e}')
+                                        continue
                     
                     art_values.append(value)
                 
@@ -461,15 +436,15 @@ def parse_data_from_WB(articles, return_keys=None, handle_nested_keys=None, show
                 result[art] = js
 
         except (IndexError, KeyError):
-            # print(f'Товар с артикулом {art} не найден или отсутствуют данные')
+            # logging.error(f'Товар с артикулом {art} не найден или отсутствуют данные: {response.json()}')
             not_found += 1
             result[art] = [None] * len(return_keys) if return_keys else None
         except Exception as e:
-            # print(f'Возникла проблема при парсинге данных по артикулу {art} с сайта WB: {e}')
+            # logging.error(f'Возникла проблема при парсинге данных по артикулу {art} с сайта WB: {e}')
             not_found += 1
             result[art] = [None] * len(return_keys) if return_keys else None
 
-    print(f'Найдены данные для {len(articles) - not_found} из {len(articles)} артикулов.')
+    logging.info(f'Найдены данные для {len(articles) - not_found} из {len(articles)} артикулов.')
 
     return result
 
@@ -537,16 +512,12 @@ def get_data_from_WB(articles = None):
             spp = round((full_price - discounted_price) / full_price * 100, 1)
         else:
             spp = ''
-        
-        # result[article] = [promo_status, rating, full_price, spp, discounted_price] # NOTE: 7.10.25: добавила discounted_price
 
         result[article] = {'promo_status':promo_status,
                            'rating': rating,
                            'full_price': full_price,
                            'spp': spp,
                            'discounted_price': discounted_price}
-
-    # print(result)
 
     return result
 
