@@ -546,72 +546,72 @@ def update_orders_sopost(sopost_sheet):
 
 if __name__ == "__main__":
 
-    # # ----- 1. загрузка данных из бд -----
-    # curr_data, hist_data = load_data()
+    # ----- 1. загрузка данных из бд -----
+    curr_data, hist_data = load_data()
 
 
-    # # ----- 2. берём данные из гугл таблицы -----
+    # ----- 2. берём данные из гугл таблицы -----
 
-    # # sh = my_gspread.connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), AUTOPILOT_SHEET_NAME) # test
-    # sh = my_gspread.connect_to_remote_sheet(AUTOPILOT_TABLE_NAME, AUTOPILOT_SHEET_NAME)
+    # sh = my_gspread.connect_to_local_sheet(os.getenv("LOCAL_TEST_TABLE"), AUTOPILOT_SHEET_NAME) # test
+    sh = my_gspread.connect_to_remote_sheet(AUTOPILOT_TABLE_NAME, AUTOPILOT_SHEET_NAME)
     
-    # # сколько нужно выделить колонок под каждую метрику (по кол-ву дней)
-    # col_num = 6
+    # сколько нужно выделить колонок под каждую метрику (по кол-ву дней)
+    col_num = 6
 
-    # # начало диапазона
-    # values_first_row = 4
+    # начало диапазона
+    values_first_row = 4
 
-    # # окончание диапазона
-    # sh_len = sh.row_count
+    # окончание диапазона
+    sh_len = sh.row_count
     
     # # заголовки для подсчёта номера колонки
-    # curr_headers = None #sh.row_values(2)
-    # hist_headers = None #sh.row_values(3)
+    curr_headers = None #sh.row_values(2)
+    hist_headers = None #sh.row_values(3)
 
-    # # отсортированный список артикулов, чтобы замэтчить данные
-    # # articles_raw = sh.col_values(1)[3:]
-    # # articles_sorted = [int(n) for n in articles_raw]
+    # отсортированный список артикулов, чтобы замэтчить данные
+    # articles_raw = sh.col_values(1)[3:]
+    # articles_sorted = [int(n) for n in articles_raw]
     
-    # sos_page = my_gspread.connect_to_remote_sheet(NEW_ITEMS_TABLE_NAME, NEW_ITEMS_ARTICLES_SHEET_NAME)
-    # articles_sorted = [int(i) for i in sos_page.col_values(1)]
+    sos_page = my_gspread.connect_to_remote_sheet(NEW_ITEMS_TABLE_NAME, NEW_ITEMS_ARTICLES_SHEET_NAME)
+    articles_sorted = [int(i) for i in sos_page.col_values(1)]
 
 
-    # # ----- 3. обработка данных -----
+    # ----- 3. обработка данных -----
 
-    # push_data_static_range(curr_data, curr_headers, col_num, articles_sorted, values_first_row, sh_len, pivot = True)
-    # logger.info('Данные за последнюю неделю успешно добавлены.\n')
+    push_data_static_range(curr_data, curr_headers, col_num, articles_sorted, values_first_row, sh_len, pivot = True)
+    logger.info('Данные за последнюю неделю успешно добавлены.\n')
 
-    # push_data_static_range(hist_data, hist_headers, 1, articles_sorted, values_first_row, sh_len, pivot = False)
-    # logger.info('Более ранние данные успешно добавлены.\n')
-
-
-    # # ----- 4. средняя позиция -----
-
-    # # последняя неделя
-    # avg_curr = load_avg_position_curr(articles_sorted)
-    # output_range = f'IQ4:IV{sh_len}'
-    # my_gspread.add_data_to_range(sh, avg_curr, output_range)
-
-    # # предпоследняя неделя
-    # avg_hist = load_avg_position_hist(articles_sorted)
-    # hist_output = [[value] for key, value in avg_hist.items()]
-    # hist_range = f'IP4:IP{sh_len}'
-    # my_gspread.add_data_to_range(sh, hist_output, hist_range)
-
-    # logger.info('Данные по средним позициям выгружены')
+    push_data_static_range(hist_data, hist_headers, 1, articles_sorted, values_first_row, sh_len, pivot = False)
+    logger.info('Более ранние данные успешно добавлены.\n')
 
 
-    # # ----- 5. Обновление вилдов и клиентов -----
+    # ----- 4. средняя позиция -----
 
-    # info = load_vendor_codes_info()
-    # vendorcodes = [[info[i].get('local_vendor_code', '')] for i in articles_sorted if i in info]
-    # accounts = [[str(info[i].get('account', '')).upper()] for i in articles_sorted if i in info]
+    # последняя неделя
+    avg_curr = load_avg_position_curr(articles_sorted)
+    output_range = f'IQ4:IV{sh_len}'
+    my_gspread.add_data_to_range(sh, avg_curr, output_range)
+
+    # предпоследняя неделя
+    avg_hist = load_avg_position_hist(articles_sorted)
+    hist_output = [[value] for key, value in avg_hist.items()]
+    hist_range = f'IP4:IP{sh_len}'
+    my_gspread.add_data_to_range(sh, hist_output, hist_range)
+
+    logger.info('Данные по средним позициям выгружены')
+
+
+    # ----- 5. Обновление вилдов и клиентов -----
+
+    info = load_vendor_codes_info()
+    vendorcodes = [[info[i].get('local_vendor_code', '')] for i in articles_sorted if i in info]
+    accounts = [[str(info[i].get('account', '')).upper()] for i in articles_sorted if i in info]
     
-    # sh.update(values = vendorcodes, range_name = f"{METRIC_TO_COL['wild_col']}{values_first_row}:{METRIC_TO_COL['wild_col']}{sh_len}")
-    # logger.info('Информация по вилдам успешно обновлена')
+    sh.update(values = vendorcodes, range_name = f"{METRIC_TO_COL['wild_col']}{values_first_row}:{METRIC_TO_COL['wild_col']}{sh_len}")
+    logger.info('Информация по вилдам успешно обновлена')
 
-    # sh.update(values = accounts, range_name = f"{METRIC_TO_COL['client_col']}{values_first_row}:{METRIC_TO_COL['client_col']}{sh_len}")
-    # logger.info('Информация по кабинетам успешно обновлена')
+    sh.update(values = accounts, range_name = f"{METRIC_TO_COL['client_col']}{values_first_row}:{METRIC_TO_COL['client_col']}{sh_len}")
+    logger.info('Информация по кабинетам успешно обновлена')
 
 
 
@@ -619,18 +619,18 @@ if __name__ == "__main__":
     # ----- юнит -----
 
 
-    # # 1. обновление статуса рекламы
+    # 1. обновление статуса рекламы
 
-    # logger.info('Updating the adv_status in Unit')
+    logger.info('Updating the adv_status in Unit')
 
-    # # take yesterday's adv spend data {sku: 'реклама', sku1: ''}
-    # df_cut_adv_status = curr_data[curr_data['date'] == max(curr_data['date'])][['date', 'article_id', 'Сумма затрат']]
+    # take yesterday's adv spend data {sku: 'реклама', sku1: ''}
+    df_cut_adv_status = curr_data[curr_data['date'] == max(curr_data['date'])][['date', 'article_id', 'Сумма затрат']]
 
-    # # convert to dict
-    # autopilot_adv_status = df_cut_adv_status[['article_id', 'Сумма затрат']].set_index('article_id').to_dict()['Сумма затрат']
+    # convert to dict
+    autopilot_adv_status = df_cut_adv_status[['article_id', 'Сумма затрат']].set_index('article_id').to_dict()['Сумма затрат']
 
-    # # adv aspend --> adv status
-    # autopilot_adv_status = {int(key): 'реклама' if value > 0 else '' for key, value in autopilot_adv_status.items()}
+    # adv aspend --> adv status
+    autopilot_adv_status = {int(key): 'реклама' if value > 0 else '' for key, value in autopilot_adv_status.items()}
 
     # connect to unit
     client = gspread.service_account(filename=CREDS_PATH)
@@ -639,26 +639,26 @@ if __name__ == "__main__":
 
 
     unit_skus = my_gspread.get_skus_unit(unit_sh)
-    # new_adv_status_sorted = process_adv_status(unit_sh, autopilot_adv_status, unit_skus)
+    new_adv_status_sorted = process_adv_status(unit_sh, autopilot_adv_status, unit_skus)
     
-    # # отправляем данные в gs
-    # update_adv_status_in_unit(unit_sh, new_adv_status_sorted)
+    # отправляем данные в gs
+    update_adv_status_in_unit(unit_sh, new_adv_status_sorted)
 
 
-    # # 2. Обновление данных в Сопосте
-    # try:
-    #     sopost_sh = unit_table.worksheet('Сопост')
-    #     update_orders_sopost(sopost_sh)
-    # except Exception as e:
-    #     logger.error(f'Error while updating orders in Sopost: {e}')
+    # 2. Обновление данных в Сопосте
+    try:
+        sopost_sh = unit_table.worksheet('Сопост')
+        update_orders_sopost(sopost_sh)
+    except Exception as e:
+        logger.error(f'Error while updating orders in Sopost: {e}')
 
     
-    # # 3. Обновление заказов по регионам в таблице Отгрузки ФБО
-    # try:
-    #     client = init_client()
-    #     update_orders_by_regions(client, logger=logger)
-    # except Exception as e:
-    #     logger.error(f'Ошибка при обновлении данных в таблице Отгрузки ФБО: {e}')
+    # 3. Обновление заказов по регионам в таблице Отгрузки ФБО
+    try:
+        client = init_client()
+        update_orders_by_regions(client, logger=logger)
+    except Exception as e:
+        logger.error(f'Ошибка при обновлении данных в таблице Отгрузки ФБО: {e}')
     
 
 
