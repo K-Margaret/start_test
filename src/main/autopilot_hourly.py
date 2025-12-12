@@ -421,10 +421,11 @@ def parse_data_from_WB(articles, return_keys=None, handle_nested_keys=None, show
                                     for nest in path:
                                         nested_value = nested_value[nest] 
                                     value = nested_value
+                                    print(f'{art} ok')
                                 except Exception as e:
                                     value = None
                                     if show_errors:
-                                        # logging.error(f'Вложенное значение {key} для артикула {art} не существует. Возвращено None. Ошибка: {e}')
+                                        print(f'Вложенное значение {key} для артикула {art} не существует. Возвращено None. Ошибка: {e}')
                                         continue
                     
                     art_values.append(value)
@@ -436,11 +437,11 @@ def parse_data_from_WB(articles, return_keys=None, handle_nested_keys=None, show
                 result[art] = js
 
         except (IndexError, KeyError):
-            # logging.error(f'Товар с артикулом {art} не найден или отсутствуют данные: {response.json()}')
+            print(f'Товар с артикулом {art} не найден или отсутствуют данные: {response.json()}')
             not_found += 1
             result[art] = [None] * len(return_keys) if return_keys else None
         except Exception as e:
-            # logging.error(f'Возникла проблема при парсинге данных по артикулу {art} с сайта WB: {e}')
+            print(f'Возникла проблема при парсинге данных по артикулу {art} с сайта WB: {e}')
             not_found += 1
             result[art] = [None] * len(return_keys) if return_keys else None
 
