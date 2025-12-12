@@ -257,7 +257,7 @@ def update_orders_by_regions(client, logger = logger):
     _db_data = load_orders_by_regions()
     _gs_output = [_db_data.columns.tolist()] + _db_data.values.tolist()
 
-    _regions_sh.clear()
+    # _regions_sh.clear()
     _regions_sh.update(values = _gs_output, range_name = 'A2')
     _regions_sh.update(
         values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
