@@ -52,6 +52,46 @@ logging.basicConfig(
     ]
 )
 
+
+WILDS_TO_EXCLUDE = [
+    "wild1362", "wild129", "wild1369", "wild1205", "wild171", "wild1206", "wild173",
+    "wild917", "wild1345", "wild1169", "wild574", "wild1146", "wild1221", "wild1308",
+    "wild1219", "wild268", "wild293", "wild1140", "wild998", "wild169", "wild1306",
+    "wild950", "wild1299", "wild1222", "wild297", "wild927", "wild1316", "wild1202",
+    "wild999", "wild183", "wild977", "wild837", "wild933", "wild296", "wild1223",
+    "wild175", "wild1224", "wild1233", "wild1198", "wild356", "wild949", "wild713",
+    "wild1300", "wild1190", "wild1346", "wild778", "wild765", "wild785", "wild767",
+    "wild1179", "wild1225", "wild373", "wild1172", "wild947", "wild742", "wild137",
+    "wild207", "wild762", "wild1212", "wild743", "wild752", "wild1251", "wild745",
+    "wild174", "wild1211", "wild747", "wild1107", "wild1168", "wild1268", "wild1301",
+    "wild119", "wild134", "wild241", "wild242", "wild243", "wild581", "wild616",
+    "wild620", "wild698", "wild700", "wild1187", "wild1210", "wild748", "wild823",
+    "wild1406", "wild1409", "wild1412", "wild1417", "wild1439", "wild1438", "wild1444",
+    "wild1539", "wild820", "wild621", "wild617", "wild619", "wild626", "wild440",
+    "wild424", "wild421", "wild1153", "wild1152", "wild288", "wild287", "wild1074",
+    "wild272", "wild140", "wild126", "wild125", "wild124", "wild1560", "wild1562",
+    "wild1602", "wild2 штуки образцы wild 1645", "wild1656", "wild1657",
+    "wild1054", "wild1050", "wild1368", "wild1046", "wild1058", "wild1324", "wild1326",
+    "wild545", "wild1331", "wild572", "wild1330", "wild1081", "wild1328", "wild1275",
+    "wild1329", "wild780", "wild1185", "wild1056", "wild1060", "wild1048", "wild1059",
+    "wild556", "wild1184", "wild1005", "wild381", "wild1363", "wild1325", "wild938",
+    "wild1052", "wild627", "wild1171", "wild718", "wild236", "wild1122", "wild496",
+    "wild1037", "wild139", "wild472", "wild1167", "wild145", "wild839", "wild1042",
+    "wild1116", "wild841", "wild1220", "wild1321", "wild1006", "wild1317", "wild1292",
+    "wild390", "wild1039", "wild895", "wild1347", "wild1287", "wild1261", "wild379",
+    "wild1103", "wild798", "wild1358", "wild637", "wild263", "wild788", "wild821",
+    "wild474", "wild921", "wild1109", "wild1311", "wild1294", "wild378", "wild899",
+    "wild199", "wild1364", "wild1260", "wild1318", "wild1343", "wild1310", "wild468",
+    "wild141", "wild286", "wild220", "wild1156", "wild1136", "wild1008", "wild344",
+    "wild341", "wild898", "wild158", "wild1177", "wild144", "wild469", "wild1130",
+    "wild1135", "wild1073", "wild1295", "wild484", "wild992", "wild215", "wild1016",
+    "wild353", "wild827", "wild608", "wild276", "wild1229", "wild1076", "wild826",
+    "wild651", "wild1181", "wild677", "wild1298", "wild122", "wild1323", "wild143",
+    "wild676", "wild1277", "wild447", "wild217", "wild525", "wild454", "wild1349",
+    "wild1291", "wild845", "wild914", "wild563", "wild1001", "wild585", "wild1112",
+    "wild961", "wild113", "wild702", "wild387"
+]
+
 def load_db_data(wilds):
 
     if not isinstance(wilds, list):
@@ -153,21 +193,41 @@ def load_unique_wilds_from_orders(orders_sh = None, table = None, client = None)
     return wilds
 
 
-def load_sopost_prices(client = None, wilds = None):
+# def load_sopost_prices(client = None, wilds = None):
+#     '''
+#     Arguments:
+#         wilds [list]: if given, returns the result for given wilds
+
+#     Result:
+#         {wild1 : purchase_price_from_sopost, wild2 : ...}
+#     '''
+#     if client is None:
+#         client = gspread.service_account(filename=CREDS_PATH)
+#     sopost = client.open(UNIT_TABLE).worksheet('Сопост')
+#     sopost_headers = sopost.row_values(1)
+#     sopost_wilds = sopost.col_values(sopost_headers.index('wild') + 1)[1:]
+#     sopost_prices = sopost.col_values(sopost_headers.index('Стоимость в закупке (руб.)') + 1)[1:]
+#     sopost_dct = {sopost_wilds[i]:clean_number(sopost_prices[i]) for i in range(len(sopost_wilds))}
+#     if wilds:
+#         sopost_dct = { k:v for k, v in sopost_dct.items() if k in wilds}
+#     return sopost_dct
+
+
+def load_sopost_wilds(client = None, wilds = None):
     '''
     Arguments:
         wilds [list]: if given, returns the result for given wilds
 
     Result:
-        {wild1 : purchase_price_from_sopost, wild2 : ...}
+        {wild1 : name, wild2 : ...}
     '''
     if client is None:
         client = gspread.service_account(filename=CREDS_PATH)
     sopost = client.open(UNIT_TABLE).worksheet('Сопост')
     sopost_headers = sopost.row_values(1)
     sopost_wilds = sopost.col_values(sopost_headers.index('wild') + 1)[1:]
-    sopost_prices = sopost.col_values(sopost_headers.index('Стоимость в закупке (руб.)') + 1)[1:]
-    sopost_dct = {sopost_wilds[i]:clean_number(sopost_prices[i]) for i in range(len(sopost_wilds))}
+    sopost_names = sopost.col_values(sopost_headers.index('Наименование') + 1)[1:]
+    sopost_dct = {w : n for w, n in zip(sopost_wilds, sopost_names)}
     if wilds:
         sopost_dct = { k:v for k, v in sopost_dct.items() if k in wilds}
     return sopost_dct
@@ -315,14 +375,20 @@ if __name__ == "__main__":
 
         # ---- new part: get wilds from three tables ----
 
-        # # Добавляем данные из Расчёта закупки
+        # Добавляем данные из Расчёта закупки
         pro_client = gspread.service_account(filename=PRO_CREDS_PATH)
         purch_table = pro_client.open(PURCHASE_TABLE)
         market_res = load_unique_wilds_from_china(purch_table.worksheet('Рынок_сервис'))
         xiamoi_res = load_unique_wilds_from_china(purch_table.worksheet('Ксиоми_сервис'))
         logging.info('Retrieved wilds from three gs tables')
         
-        wilds_w_names = {**orders_sh_wilds, **new_wilds, **market_res, **xiamoi_res} # {wild : name}
+
+        # add wilds from sopost
+        sopost_wilds = load_sopost_wilds()
+        sopost_wilds = {w : n for w, n in sopost_wilds.items() if w not in WILDS_TO_EXCLUDE}
+        
+
+        wilds_w_names = {**orders_sh_wilds, **new_wilds, **market_res, **xiamoi_res, **sopost_wilds} # {wild : name}
         wilds = list(wilds_w_names.keys()) # just wilds names
 
         # ---- end of the new part: get wilds from three tables ----
