@@ -337,6 +337,18 @@ def update_purchase_price_in_gs(orders_sh):
     logging.info(f"Successfully added purchase price to the sheet {orders_sh.title}")
     return orders_sh_wilds
 
+def load_db_categories():
+    query = f'''
+    select distinct on (oaa.local_vendor_code)
+    oaa.local_vendor_code,
+    oaa.subject_name
+    from {DB_ANALYSIS} oaa
+    where oaa.local_vendor_code like 'wild%'
+    '''
+    dct =  fetch_db_data_into_dict(query)
+    res = {i['local_vendor_code']: i['subject_name'] for i in dct}
+    return res
+
 
 if __name__ == "__main__":
     
@@ -386,7 +398,7 @@ if __name__ == "__main__":
         # add wilds from sopost
         sopost_wilds = load_sopost_wilds()
         sopost_wilds = {w : n for w, n in sopost_wilds.items() if w not in WILDS_TO_EXCLUDE}
-        
+
 
         wilds_w_names = {**orders_sh_wilds, **new_wilds, **market_res, **xiamoi_res, **sopost_wilds} # {wild : name}
         wilds = list(wilds_w_names.keys()) # just wilds names
@@ -397,6 +409,7 @@ if __name__ == "__main__":
         db_data = load_db_data(wilds)
 
 
+
         # ---- new part: merge db data with absent wilds ----
 
         db_wilds = [i['local_vendor_code'] for i in db_data]
@@ -405,7 +418,11 @@ if __name__ == "__main__":
         absent_df = pd.DataFrame(absent_wilds, columns = ['local_vendor_code'])
         full_df = df.merge(absent_df, on = 'local_vendor_code', how = 'outer')
         full_df['name'] = full_df['local_vendor_code'].map(wilds_w_names)
+        # match all categories
+        wild_category = load_db_categories()
+        full_df['subject_name'] = full_df['local_vendor_code'].map(wild_category)
         full_df.fillna(0, inplace = True)
+
 
         full_df['sort_key'] = full_df['local_vendor_code'].str.extract(r'(\d+)').fillna(0).astype(int)
         full_df.sort_values('sort_key', inplace=True)
