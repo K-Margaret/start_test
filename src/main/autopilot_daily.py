@@ -60,6 +60,7 @@ METRIC_TO_COL = {
     # вилды и аккаунты
     "wild_col" : "D",
     "client_col":"C",
+    "category_col": "B",
     
     # Основные метрики
     "Сумма заказов": "AX",
@@ -483,20 +484,25 @@ def load_vendor_codes_info(filter_skus = None):
 
     where = ''
     if filter_skus is not None:
-        where = f'where nm_id in ({db.list_to_sql_select(filter_skus)})'        
+        where = f'where a.nm_id in ({db.list_to_sql_select(filter_skus)})'        
 
     query = f'''
-    select
-        nm_id,
-        local_vendor_code,
-        account
+    select distinct on (a.nm_id)
+        a.nm_id,
+        a.local_vendor_code,
+        a.account,
+        cd.subject_name as category
     from
-        article
+        article a
+    left join card_data cd
+    on a.nm_id = cd.article_id
     {where}
     '''
+
     data = db.fetch_db_data_into_dict(query)
 
-    return {i['nm_id']:{'local_vendor_code': i['local_vendor_code'], 'account': i['account']} for i in data}
+    return {i['nm_id']:{'local_vendor_code': i['local_vendor_code'], 'account': i['account'], 'category': i['category']} for i in data}
+
 
 def load_db_orders():
     query = '''
@@ -606,12 +612,16 @@ if __name__ == "__main__":
     info = load_vendor_codes_info()
     vendorcodes = [[info[i].get('local_vendor_code', '')] for i in articles_sorted if i in info]
     accounts = [[str(info[i].get('account', '')).upper()] for i in articles_sorted if i in info]
+    categories = [[info[i].get('category', '')] for i in articles_sorted if i in info]
     
     sh.update(values = vendorcodes, range_name = f"{METRIC_TO_COL['wild_col']}{values_first_row}:{METRIC_TO_COL['wild_col']}{sh_len}")
     logger.info('Информация по вилдам успешно обновлена')
 
     sh.update(values = accounts, range_name = f"{METRIC_TO_COL['client_col']}{values_first_row}:{METRIC_TO_COL['client_col']}{sh_len}")
     logger.info('Информация по кабинетам успешно обновлена')
+
+    sh.update(values = categories, range_name = f"{METRIC_TO_COL['category_col']}{values_first_row}:{METRIC_TO_COL['category_col']}{sh_len}")
+    logger.info('Информация по категориям успешно обновлена')
 
 
 
@@ -659,7 +669,6 @@ if __name__ == "__main__":
         update_orders_by_regions(client, logger=logger)
     except Exception as e:
         logger.error(f'Ошибка при обновлении данных в таблице Отгрузки ФБО: {e}')
-    
 
 
     # 4. обновление отзывов
