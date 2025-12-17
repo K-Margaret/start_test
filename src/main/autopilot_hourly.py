@@ -769,76 +769,76 @@ if __name__ == "__main__":
     try:
         
 
-        # # ----- выгрузка остатков из юнитки -----
-        # try:
-        #     unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
-        #     unit_remains = load_unit_remains(unit_sh = unit_sh)
+        # ----- выгрузка остатков из юнитки -----
+        try:
+            unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
+            unit_remains = load_unit_remains(unit_sh = unit_sh)
 
-        #     pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
-        #     output_data = [[value] for key, value in pilot_remains.items()]
+            pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
+            output_data = [[value] for key, value in pilot_remains.items()]
 
-        #     col_letter = METRIC_TO_COL["Свободный остаток"]
-        #     output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
-        #     my_gspread.add_data_to_range(sh, output_data, output_range)
-        #     logging.info('Остатки склада успешно загружены в ПУ')
-        # except Exception as e:
-        #     logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
-        #     raise ValueError
+            col_letter = METRIC_TO_COL["Свободный остаток"]
+            output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
+            my_gspread.add_data_to_range(sh, output_data, output_range)
+            logging.info('Остатки склада успешно загружены в ПУ')
+        except Exception as e:
+            logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
+            raise ValueError
 
-        # # ----- promo, rating, prices, spp, цена с спп -----
-        # wb_data = get_data_from_WB(articles_sorted)
+        # ----- promo, rating, prices, spp, цена с спп -----
+        wb_data = get_data_from_WB(articles_sorted)
 
-        # # update spp price in db
-        # try:
-        #     connection = create_connection_w_env()
-        #     insert_spp_data_to_db(connection, wb_data)
-        #     connection.close()
-        # except Exception as e:
-        #     logging.erorr(f"Ошибка при попытке внесения изменений СПП цены: {e}")
+        # update spp price in db
+        try:
+            connection = create_connection_w_env()
+            insert_spp_data_to_db(connection, wb_data)
+            connection.close()
+        except Exception as e:
+            logging.erorr(f"Ошибка при попытке внесения изменений СПП цены: {e}")
 
-        # try:
-        #     # выгружаем promo, rating, prices, spp
-        #     for metric_ru, metric_en in [['Акции', 'promo_status'],
-        #                                 ['Рейтинг', 'rating'],
-        #                                 ['Цены', 'full_price'],
-        #                                 ['скидка WB', 'spp']]:
-        #         metric_data = [[wb_data[i][metric_en]] for i in articles_sorted]
-        #         range_start = METRIC_TO_COL[metric_ru]
-        #         range_end = my_gspread.calculate_range_end(range_start, col_num)
-        #         metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
+        try:
+            # выгружаем promo, rating, prices, spp
+            for metric_ru, metric_en in [['Акции', 'promo_status'],
+                                        ['Рейтинг', 'rating'],
+                                        ['Цены', 'full_price'],
+                                        ['скидка WB', 'spp']]:
+                metric_data = [[wb_data[i][metric_en]] for i in articles_sorted]
+                range_start = METRIC_TO_COL[metric_ru]
+                range_end = my_gspread.calculate_range_end(range_start, col_num)
+                metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
 
-        #         try:
-        #             my_gspread.add_data_to_range(sh, metric_data, metric_range, clean_range=False)
-        #             logging.info(f'Данные по {metric_ru} за сегодня были успешно добавлены в диапазон {metric_range}.')
-        #         except Exception as e:
-        #             logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
-        #             continue
-        # except Exception as e:
-        #     logging.error(f"Ошибка при выгрузке {metric_ru}: {e}")
+                try:
+                    my_gspread.add_data_to_range(sh, metric_data, metric_range, clean_range=False)
+                    logging.info(f'Данные по {metric_ru} за сегодня были успешно добавлены в диапазон {metric_range}.')
+                except Exception as e:
+                    logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
+                    continue
+        except Exception as e:
+            logging.error(f"Ошибка при выгрузке {metric_ru}: {e}")
 
-        # try:
+        try:
 
-        #     # выгружаем цену с спп
-        #     spp_price = [
-        #         [wb_data[i].get('discounted_price', '')] if i in wb_data else ['']
-        #         for i in articles_sorted
-        #     ]
-        #     spp_price_col_letter = METRIC_TO_COL["Наша цена с СПП"]
+            # выгружаем цену с спп
+            spp_price = [
+                [wb_data[i].get('discounted_price', '')] if i in wb_data else ['']
+                for i in articles_sorted
+            ]
+            spp_price_col_letter = METRIC_TO_COL["Наша цена с СПП"]
 
-        #     metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
-        #     my_gspread.add_data_to_range(sh, spp_price, metric_range, clean_range=False)
-        #     logging.info(f'Данные по Наша цена с СПП за сегодня были успешно добавлены в диапазон {metric_range}.')
+            metric_range = f'{spp_price_col_letter}{values_first_row}:{spp_price_col_letter}{sh_len}'
+            my_gspread.add_data_to_range(sh, spp_price, metric_range, clean_range=False)
+            logging.info(f'Данные по Наша цена с СПП за сегодня были успешно добавлены в диапазон {metric_range}.')
         
-        # except Exception as e:
-        #     logging.error(f"Ошибка при выгрузке Цены с СПП: {e}")
+        except Exception as e:
+            logging.error(f"Ошибка при выгрузке Цены с СПП: {e}")
 
 
-        # # ----- adv spend -----
-        # adv_spend = load_adv_spend(articles_sorted)
-        # adv_header = 'adv_spend'
+        # ----- adv spend -----
+        adv_spend = load_adv_spend(articles_sorted)
+        adv_header = 'adv_spend'
 
-        # push_data_static_range(sh = sh, dct = adv_spend, metric_names = adv_header, gsheet_headers = сurr_headers, matched_metrics = METRIC_RU,
-        #         articles_sorted = articles_sorted, col_num = col_num, values_first_row = values_first_row, sh_len=sh_len)
+        push_data_static_range(sh = sh, dct = adv_spend, metric_names = adv_header, gsheet_headers = сurr_headers, matched_metrics = METRIC_RU,
+                articles_sorted = articles_sorted, col_num = col_num, values_first_row = values_first_row, sh_len=sh_len)
 
 
         # ----- funnel -----
@@ -848,73 +848,73 @@ if __name__ == "__main__":
                 articles_sorted = articles_sorted, col_num = col_num, values_first_row = values_first_row, sh_len=sh_len)
 
 
-        # # ----- calculations -----
-        # profit_data, net_profit, adv_part, cpo = get_calc_data(adv_spend, fun_data, fun_headers)
-        # calc_headers = ['profit_by_cond_orders', 'ЧП-РК', 'ДРР', 'cpo']
+        # ----- calculations -----
+        profit_data, net_profit, adv_part, cpo = get_calc_data(adv_spend, fun_data, fun_headers)
+        calc_headers = ['profit_by_cond_orders', 'ЧП-РК', 'ДРР', 'cpo']
         
-        # for header, calc_data in zip(calc_headers, [profit_data, net_profit, adv_part, cpo]):
-        #     push_data_static_range(sh = sh, dct = calc_data, metric_names = header, gsheet_headers = сurr_headers, matched_metrics = METRIC_RU,
-        #             articles_sorted = articles_sorted, col_num = col_num, values_first_row = values_first_row, sh_len=sh_len)
+        for header, calc_data in zip(calc_headers, [profit_data, net_profit, adv_part, cpo]):
+            push_data_static_range(sh = sh, dct = calc_data, metric_names = header, gsheet_headers = сurr_headers, matched_metrics = METRIC_RU,
+                    articles_sorted = articles_sorted, col_num = col_num, values_first_row = values_first_row, sh_len=sh_len)
             
         
-        # # ----- клики, ctr, cpc, cpm -----
-        # adv_data = process_adv_stat_new()
-        # adv_by_sku = {item['article_id']: {k: v for k, v in item.items() if k != 'article_id'}
-        #               for item in adv_data
-        #               }
-        # adv_ordered = [adv_by_sku[id] for id in articles_sorted if id in adv_by_sku] 
-        # for metric_en, metric_ru in [['clicks', 'Клики'],['views', 'Показы'],
-        #                              ['cpm', 'cpm'], ['cpc', 'cpc'], ['ctr', 'ctr']]:
-        #     metric_data = [[i[metric_en]] for i in adv_ordered]
-        #     range_start = METRIC_TO_COL[metric_ru]
-        #     range_end = my_gspread.calculate_range_end(range_start, col_num)
-        #     metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
+        # ----- клики, ctr, cpc, cpm -----
+        adv_data = process_adv_stat_new()
+        adv_by_sku = {item['article_id']: {k: v for k, v in item.items() if k != 'article_id'}
+                      for item in adv_data
+                      }
+        adv_ordered = [adv_by_sku[id] for id in articles_sorted if id in adv_by_sku] 
+        for metric_en, metric_ru in [['clicks', 'Клики'],['views', 'Показы'],
+                                     ['cpm', 'cpm'], ['cpc', 'cpc'], ['ctr', 'ctr']]:
+            metric_data = [[i[metric_en]] for i in adv_ordered]
+            range_start = METRIC_TO_COL[metric_ru]
+            range_end = my_gspread.calculate_range_end(range_start, col_num)
+            metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
 
-        #     try:
-        #         my_gspread.add_data_to_range(sh, metric_data, metric_range, clean_range=False)
-        #         logging.info(f'Данные по {metric_ru} за сегодня были успешно добавлены в диапазон {metric_range}.')
-        #     except Exception as e:
-        #         logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
-        #         continue
+            try:
+                my_gspread.add_data_to_range(sh, metric_data, metric_range, clean_range=False)
+                logging.info(f'Данные по {metric_ru} за сегодня были успешно добавлены в диапазон {metric_range}.')
+            except Exception as e:
+                logging.error(f'Failed to add data for metric {metric_ru}:\n{e}')
+                continue
         
-        # # ----- органика -----
-        # try:
-        #     open_card_idx = fun_headers.index('open_card_count')
-        # except ValueError:
-        #     raise KeyError("'open_card_count' not found in funnel headers")
+        # ----- органика -----
+        try:
+            open_card_idx = fun_headers.index('open_card_count')
+        except ValueError:
+            raise KeyError("'open_card_count' not found in funnel headers")
 
-        # open_card_dict = {
-        #     int(nm_id): values[open_card_idx]
-        #     for nm_id, values in fun_data.items()
-        # }
+        open_card_dict = {
+            int(nm_id): values[open_card_idx]
+            for nm_id, values in fun_data.items()
+        }
 
-        # clicks_dict = {item['article_id']: item['clicks'] for item in adv_data}
+        clicks_dict = {item['article_id']: item['clicks'] for item in adv_data}
 
-        # organic_list = []
-        # for nm_id in articles_sorted:
-        #     open_cnt = open_card_dict.get(nm_id, 0)
-        #     clicks = clicks_dict.get(nm_id, 0)
-        #     organic = max(0, open_cnt - clicks)
-        #     organic_list.append(organic)
+        organic_list = []
+        for nm_id in articles_sorted:
+            open_cnt = open_card_dict.get(nm_id, 0)
+            clicks = clicks_dict.get(nm_id, 0)
+            organic = max(0, open_cnt - clicks)
+            organic_list.append(organic)
 
-        # organic_list = [[i] for i in organic_list]
+        organic_list = [[i] for i in organic_list]
 
-        # range_start = METRIC_TO_COL['Органика']
-        # range_end = my_gspread.calculate_range_end(range_start, col_num)
-        # metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
+        range_start = METRIC_TO_COL['Органика']
+        range_end = my_gspread.calculate_range_end(range_start, col_num)
+        metric_range = f'{range_end}{values_first_row}:{range_end}{sh_len}'
 
-        # try:
-        #     my_gspread.add_data_to_range(sh, organic_list, metric_range, clean_range=False)
-        #     logging.info(f'Данные по Органика за сегодня были успешно добавлены в диапазон {metric_range}.')
-        # except Exception as e:
-        #     logging.error(f'Failed to add data for metric Органика:\n{e}')
+        try:
+            my_gspread.add_data_to_range(sh, organic_list, metric_range, clean_range=False)
+            logging.info(f'Данные по Органика за сегодня были успешно добавлены в диапазон {metric_range}.')
+        except Exception as e:
+            logging.error(f'Failed to add data for metric Органика:\n{e}')
 
 
-        # current_time = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-        # sh.update(
-        #     values=[[f'Актуализировано на {current_time}']],
-        #     range_name='A2'
-        # )
+        current_time = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+        sh.update(
+            values=[[f'Актуализировано на {current_time}']],
+            range_name='A2'
+        )
         
     except Exception as e:
         logging.error(f'Error:\n{e}')
