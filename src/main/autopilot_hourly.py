@@ -255,6 +255,9 @@ def collect_full_funnel_data(articles_sorted = None):
             for nmID in missing_ids:
                 result_dict[nmID] = zero_row
 
+    if articles_sorted is not None:
+        result_dict = {k: result_dict[k] for k in articles_sorted}
+
     return result_dict, headers
 
 
@@ -612,7 +615,13 @@ def push_data_static_range(sh, dct, metric_names, gsheet_headers, matched_metric
     ordered_dict = my_pandas.order_dict_by_list(dct, articles_sorted)
 
     for i in range(len(next(iter(dct.values())))):
-        metric_data = [[0 if value is None else value] for values in ordered_dict.values() for value in [values[i]]]
+        # metric_data = [[0 if value is None else value] for values in ordered_dict.values() for value in [values[i]]]
+
+        metric_data = []
+        for article in articles_sorted:
+            values = ordered_dict.get(article, [0]*len(metric_names))
+            metric_data.append([values[i]])
+
         metric_ru = METRIC_RU[metric_names[i]]
 
         # === STATIC RANGE LOGIC ===
