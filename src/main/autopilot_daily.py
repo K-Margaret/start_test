@@ -575,11 +575,11 @@ if __name__ == "__main__":
     hist_headers = None #sh.row_values(3)
 
     # отсортированный список артикулов, чтобы замэтчить данные
-    # articles_raw = sh.col_values(1)[3:]
-    # articles_sorted = [int(n) for n in articles_raw]
+    articles_raw = sh.col_values(1)[3:]
+    articles_sorted = [int(n) for n in articles_raw]
     
-    sos_page = my_gspread.connect_to_remote_sheet(NEW_ITEMS_TABLE_NAME, NEW_ITEMS_ARTICLES_SHEET_NAME)
-    articles_sorted = [int(i) for i in sos_page.col_values(1)]
+    # sos_page = my_gspread.connect_to_remote_sheet(NEW_ITEMS_TABLE_NAME, NEW_ITEMS_ARTICLES_SHEET_NAME)
+    # articles_sorted = [int(i) for i in sos_page.col_values(1)]
 
 
     # ----- 3. обработка данных -----
