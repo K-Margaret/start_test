@@ -60,7 +60,6 @@ def supply_info(account, api_token, begin, end):
     return full_data  # Возврат данных после завершения цикла
 
 
-
 async def supply_info(account, api_token, begin, end):
     url = 'https://marketplace-api.wildberries.ru/api/v3/orders'
     next_value = 0
@@ -158,6 +157,7 @@ if __name__ == "__main__":
         google_df['Создано'] = google_df['Создано'].astype(str)
         google_df['Дата'] = google_df['Дата'].astype(str)
         google_df['Время'] = google_df['Время'].astype(str)
+
     except Exception as e:
         logger.error(f'Ошибка при обработке данных: {e}')
 
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         table = gc.open('Для расчетов БД')
         task_sheet = table.worksheet('БД 2 ( ТЕСТ )')
 
-        # update_df_in_google(google_df, task_sheet)
+        update_df_in_google(google_df, task_sheet)
         logger.info('Данные успешно добавлены в гугл')
     except Exception as e:
         logger.error(f'Ошибка при добавлении данных в гугл: {e}')
