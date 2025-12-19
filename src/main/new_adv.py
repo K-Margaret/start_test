@@ -1,7 +1,7 @@
 import requests
 import json
 import pandas as pd
-from datetime import datetime, timedelta, date
+from datetime import date
 import itertools
 import asyncio
 import aiohttp
@@ -23,7 +23,7 @@ async def adv_stat_async(campaign_ids: list, date_from: str, date_to: str, api_t
     semaphore = asyncio.Semaphore(10)
     url = "https://advert-api.wildberries.ru/adv/v3/fullstats"
     headers = {"Authorization": api_token}
-    batches = list(batchify(campaign_ids, 100))
+    batches = list(batchify(campaign_ids, 50))
     data = []
     async with semaphore:
         async with aiohttp.ClientSession(headers=headers) as session:
