@@ -146,10 +146,10 @@ def process_daily_report(target_date):
 
 if __name__ == "__main__":
     # for yesterday
-    # yesterday = (datetime.now() - timedelta(days=1)).date()
-    # process_daily_report(yesterday)
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+    process_daily_report(yesterday)
 
-    # for a time period
-    for day in range(18, 0, -1):
-        target_date = date(year = 2025, month = 12, day = day)
-        process_daily_report(target_date)
+    # # for a time period
+    # for day in range(18, 0, -1):
+    #     target_date = date(year = 2025, month = 12, day = day)
+    #     process_daily_report(target_date)
