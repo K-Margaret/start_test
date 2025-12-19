@@ -663,6 +663,9 @@ def push_data_static_range(sh, dct, metric_names, gsheet_headers, matched_metric
 
 def load_unit_remains(unit_sh = None):
 
+    if unit_sh is None:
+        unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
+
     # 1. take remains data from unit
     skus = unit_sh.col_values(1)
     remains = unit_sh.col_values(51)
@@ -677,9 +680,14 @@ def load_unit_remains(unit_sh = None):
     skus = skus[1:]
     remains = remains[1:]
 
+    # unit_remains = {
+    #     int(skus[i]): int(remains[i]) if remains[i] != '' else None 
+    #     for i in range(len(skus))
+    # }
+
     unit_remains = {
-        int(skus[i]): int(remains[i]) if remains[i] != '' else None 
-        for i in range(len(skus))
+    int(skus[i]): int(remains[i]) if i < len(remains) and remains[i] != '' else None
+    for i in range(len(skus))
     }
     
     return unit_remains
@@ -740,10 +748,6 @@ def insert_spp_data_to_db(connection, wb_data):
             connection.commit()
             logging.info("Найдены изменения в цене СПП. Изменения записаны в БД")
 
-def get_articles_sorted():
-    sos_page = my_gspread.connect_to_remote_sheet(os.getenv('NEW_ITEMS_TABLE_NAME'), os.getenv('NEW_ITEMS_ARTICLES_SHEET_NAME')) # prod
-    articles_sorted = [int(i) for i in sos_page.col_values(1)]
-    return articles_sorted
 
 if __name__ == "__main__":
 
@@ -778,21 +782,20 @@ if __name__ == "__main__":
     try:
         
 
-        # # ----- выгрузка остатков из юнитки -----
-        # try:
-        #     unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
-        #     unit_remains = load_unit_remains(unit_sh = unit_sh)
+        # ----- выгрузка остатков из юнитки -----
+        try:
+            unit_sh = my_gspread.connect_to_remote_sheet(os.getenv("UNIT_TABLE"), os.getenv("UNIT_MAIN_SHEET"))
+            unit_remains = load_unit_remains(unit_sh = unit_sh)
+            pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
+            output_data = [[value] for key, value in pilot_remains.items()]
 
-        #     pilot_remains = {sku:unit_remains.get(sku, None) for sku in articles_sorted}
-        #     output_data = [[value] for key, value in pilot_remains.items()]
-
-        #     col_letter = METRIC_TO_COL["Свободный остаток"]
-        #     output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
-        #     my_gspread.add_data_to_range(sh, output_data, output_range)
-        #     logging.info('Остатки склада успешно загружены в ПУ')
-        # except Exception as e:
-        #     logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
-        #     raise ValueError
+            col_letter = METRIC_TO_COL["Свободный остаток"]
+            output_range = f"{col_letter}{values_first_row}:{col_letter}{sh_len}"
+            my_gspread.add_data_to_range(sh, output_data, output_range)
+            logging.info('Остатки склада успешно загружены в ПУ')
+        except Exception as e:
+            logging.error(f"Не удалось выгрузить остатки из юнитки в ПУ:\n{e}")
+            raise ValueError
 
         # ----- promo, rating, prices, spp, цена с спп -----
         wb_data = get_data_from_WB(articles_sorted)
