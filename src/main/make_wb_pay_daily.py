@@ -150,6 +150,6 @@ if __name__ == "__main__":
     # process_daily_report(yesterday)
 
     # for a time period
-    for day in range(30, 0, -1):
-        target_date = date(year = 2025, month = 9, day = day)
+    for day in range(31, 0, -1):
+        target_date = date(year = 2025, month = 10, day = day)
         process_daily_report(target_date)
