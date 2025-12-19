@@ -92,7 +92,7 @@ def process_db_data(db_data):
 
 def load_periods():
     ws = TABLE.worksheet("Дашборд")
-    raw = ws.col_values(1)[:30]
+    raw = ws.col_values(1)[:70]
     year = date.today().year
 
     periods = []
