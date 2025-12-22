@@ -183,3 +183,13 @@ def to_iso_z(date_str: str, t: time) -> str:
         raise ValueError("Date must be in '%Y-%m-%d' or '%Y-%m-%dT%H:%M:%SZ' format")
     
     return datetime.combine(d, t).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def clean_datetime_from_timezone(val):
+    """
+    Converts ISO datetime string with 'Z' to naive datetime.
+    Returns other values unchanged.
+    """
+    if isinstance(val, str) and 'T' in val and '-' in val and 'Z' in val:
+        return datetime.fromisoformat(val.replace("Z", ""))
+    return val

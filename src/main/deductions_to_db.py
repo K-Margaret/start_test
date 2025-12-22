@@ -3,19 +3,19 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import asyncio
+import aiohttp
 import requests
 from time import sleep
-from datetime import datetime, timedelta
 from typing import Literal, Optional
+from datetime import datetime, timedelta, time
+
+from utils.my_general import to_iso_z, clean_datetime_from_timezone, save_json
 from utils.logger import setup_logger
 from utils.utils import load_api_tokens
 from psycopg2.extras import execute_values
 from utils.my_db_functions import create_connection_w_env
 
 logger = setup_logger("deductions_to_db.log")
-
-# def to_iso(d):
-#     return datetime.strptime(d, "%Y-%m-%d").strftime("%Y-%m-%dT00:00:00Z")
 
 def to_iso(d):
     if isinstance(d, datetime):
@@ -189,7 +189,150 @@ async def process_measurements_client(client: str, token: str, conn, date_from, 
         raise
 
 
+async def get_deductions_replacements(api_key, date_from, date_to, limit=1000):
+    headers = {"Authorization": api_key}
+    offset = 0
+    all_reports = []
+
+    url = "https://seller-analytics-api.wildberries.ru/api/analytics/v1/deductions"
+
+    date_from = to_iso_z(date_from, t = time(0, 0, 0))
+    date_to = to_iso_z(date_to, t = time(23, 59, 59))
+
+    async with aiohttp.ClientSession(headers=headers) as session:
+        while True:
+            params = {
+                "dateTo": date_to,
+                "limit": limit,
+                "offset": offset,
+            }
+            if date_from:
+                params["dateFrom"] = date_from
+
+            async with session.get(url, params=params) as resp:
+                resp.raise_for_status()
+                payload = await resp.json()
+
+            reports = payload.get("data", {}).get("reports", [])
+            if not reports:
+                break
+
+            all_reports.extend(reports)
+
+            if len(reports) < limit:
+                break
+
+            offset += limit
+            await asyncio.sleep(65)  # non-blocking rate limit wait
+
+    return all_reports
+
+
+def insert_deductions_replacements(conn, data, client):
+    """
+    Insert a list of deduction reports into PostgreSQL.
+    
+    :param conn: psycopg2 connection
+    :param data: list of dicts with deduction data
+    """
+    if not data:
+        return
+
+    # Column names in the table
+    columns = [
+        "dt_bonus",
+        "nm_id",
+        "old_shk_id",
+        "old_color",
+        "old_size",
+        "old_sku",
+        "old_vendor_code",
+        "new_shk_id",
+        "new_color",
+        "new_size",
+        "new_sku",
+        "new_vendor_code",
+        "bonus_summ",
+        "bonus_type",
+        "photo_urls",
+        "account"
+    ]
+
+    # Map dict keys to column names
+    values = []
+    for item in data:
+        values.append((
+            clean_datetime_from_timezone(item.get("dtBonus")).date(),
+            item.get("nmId"),
+            item.get("oldShkId"),
+            item.get("oldColor"),
+            item.get("oldSize"),
+            item.get("oldSku"),
+            item.get("oldVendorCode"),
+            item.get("newShkId"),
+            item.get("newColor"),
+            item.get("newSize"),
+            item.get("newSku"),
+            item.get("newVendorCode"),
+            item.get("bonusSumm"),
+            item.get("bonusType"),
+            item.get("photoUrls"),
+            client
+        ))
+
+    query = f"""
+        INSERT INTO deductions_replacements ({', '.join(columns)})
+        VALUES %s
+    """
+
+    with conn.cursor() as cur:
+        execute_values(cur, query, values)
+    conn.commit()
+
+
+
+async def process_deductions_replacements(client, api_token, conn, date_from, date_to):
+    data = await get_deductions_replacements(
+        api_key=api_token,
+        date_from=date_from,
+        date_to=date_to
+    )
+    insert_deductions_replacements(conn, data, client)
+    logger.info(f"Inserted {len(data)} records for client {client}")
+
+
+def first_insert_all_deductions_replacements():
+    '''
+    Использовалась однажды для выгрузки отчета "Подмены и неверные вложения" за весь период
+    '''
+
+    tokens = load_api_tokens()
+    conn = create_connection_w_env()
+
+    date_from = "2024-01-01T00:00:00Z"
+    date_to = "2025-12-21T23:59:59Z"
+
+    # Run async code directly
+    async def run_all_clients():
+        tasks = [
+            process_deductions_replacements(client, token, conn, date_from, date_to)
+            for client, token in tokens.items()
+        ]
+        await asyncio.gather(*tasks)
+
+    asyncio.run(run_all_clients())
+    conn.close()
+
+
 async def main():
+    '''
+    Функционал: выгружает три отчета по удержаниям из WB API в БД.
+    Период: предыдущий день.
+    Выгружаемые отчеты:
+        - Замеры склада,
+        - Удержания за занижение габаритов упаковки,
+        - Подмены и неверные вложения.
+    '''
     tokens = load_api_tokens()
     conn = create_connection_w_env()
 
@@ -200,14 +343,22 @@ async def main():
 
     tasks = []
     for client, token in tokens.items():
+
+        # Отчеты "Замеры склада" и "Удержания за занижение габаритов упаковки"
         tasks.append(
             asyncio.create_task(
                 process_measurements_client(client, token, conn, date_from, date_to)
             )
         )
 
-    await asyncio.gather(*tasks)
+        # Отчет "Подмены и неверные вложения"
+        tasks.append(
+            asyncio.create_task(
+                process_deductions_replacements(client, token, conn, date_from, date_to)
+            )
+        )
 
+    await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
     asyncio.run(main())
