@@ -2,7 +2,7 @@ import json
 from decimal import Decimal
 from collections import defaultdict
 import logging
-from datetime import datetime
+from datetime import datetime, time
 
 def ensure_datetime(d):
     """Convert string 'yyyy-mm-dd' to datetime, or return datetime as-is."""
@@ -167,3 +167,19 @@ def dct_process_date(dct, date_key, date_format):
     if date_key in dct and dct[date_key] is not None:
         dct[date_key] = dct[date_key].strftime(date_format)
     return dct
+
+def to_iso_z(date_str: str, t: time) -> str:
+    # If already in ISO Z format, return as is
+    try:
+        datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
+        return date_str
+    except ValueError:
+        pass
+
+    # Check for YYYY-MM-DD format
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError("Date must be in '%Y-%m-%d' or '%Y-%m-%dT%H:%M:%SZ' format")
+    
+    return datetime.combine(d, t).strftime("%Y-%m-%dT%H:%M:%SZ")
