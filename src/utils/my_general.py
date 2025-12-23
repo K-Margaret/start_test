@@ -168,8 +168,13 @@ def dct_process_date(dct, date_key, date_format):
         dct[date_key] = dct[date_key].strftime(date_format)
     return dct
 
-def to_iso_z(date_str: str, t: time) -> str:
-    # If already in ISO Z format, return as is
+def to_iso_z(date_str, t: time) -> str:
+
+    # if datetime
+    if isinstance(date_str, datetime):
+        return date_str.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # if already in ISO Z format, return as is
     try:
         datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%SZ")
         return date_str

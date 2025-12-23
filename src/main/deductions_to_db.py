@@ -114,7 +114,7 @@ async def process_measurements_client(client: str, token: str, conn, date_from, 
         )
 
         if not penalties:
-            logger.info(f'No penalty data for client {client} between {date_from} and {date_to}')
+            logger.info(f"Нет данных за период {date_from}-{date_to}: Отчет - 'Удержания за занижение габаритов упаковки', Кабинет - {client}")
         else:
             penalties_cols = {
                 "nmId": "nm_id",
@@ -144,8 +144,9 @@ async def process_measurements_client(client: str, token: str, conn, date_from, 
                 penalties_cols,
                 conn
             )
+            logger.info(f"Получены данные за период {date_from}-{date_to}, Внесено строк в БД: {len(penalties)}: Отчет - 'Удержания за занижение габаритов упаковки', Кабинет - {client}")
 
-        sleep(12)
+        await asyncio.sleep(12)
 
         # 2. Measurements (замеры ВБ)
         mode_measurements = "measurement"
@@ -155,7 +156,7 @@ async def process_measurements_client(client: str, token: str, conn, date_from, 
         )
 
         if not measures:
-            logger.info(f'No measurement data for client {client} between {date_from} and {date_to}')
+            logger.info(f"Нет данных за период {date_from}-{date_to}: Отчет - 'Замеры склада', Кабинет - {client}")
         else:
             measures_cols = {
                 "nmId": "nm_id",
@@ -183,6 +184,7 @@ async def process_measurements_client(client: str, token: str, conn, date_from, 
                 measures_cols,
                 conn
             )
+            logger.info(f"Получены данные за период {date_from}-{date_to}, Внесено строк в БД: {len(penalties)}: Отчет - 'Замеры склада', Кабинет - {client}")
 
     except Exception as e:
         logger.error(f'Encountered an unexpected error while uploading data for client {client}: {e}')
@@ -297,8 +299,11 @@ async def process_deductions_replacements(client, api_token, conn, date_from, da
         date_from=date_from,
         date_to=date_to
     )
-    insert_deductions_replacements(conn, data, client)
-    logger.info(f"Inserted {len(data)} records for client {client}")
+    if data:
+        insert_deductions_replacements(conn, data, client)
+        logger.info(f"Получены данные за период {date_from}-{date_to}, Внесено строк в БД: {len(data)}: Отчет - 'Подмены и неверные вложения', Кабинет - {client}")
+    else:
+        logger.info(f"Нет данных за период {date_from}-{date_to}: Отчет - 'Подмены и неверные вложения', Кабинет - {client}")
 
 
 def first_insert_all_deductions_replacements():
