@@ -14,6 +14,7 @@ from utils.my_db_functions import create_connection_w_env
 
 logger = setup_logger('wb_chats.log')
 
+SEM = asyncio.Semaphore(3)
 
 async def fetch_events_page(
     session: aiohttp.ClientSession,
@@ -90,25 +91,24 @@ def insert_events(conn, events, client):
     logger.info(f"Inserted {len(events)} events into wb_chats for client: {client}")
 
 
-async def fetch_all_for_client(session: aiohttp.ClientSession, conn, acc_name: str, token: str):
-    next_timestamp = 0
-    while next_timestamp is not None:
-        data = await fetch_events_page(session, token, next_timestamp)
-        events = data["events"]
+async def fetch_all_for_client(session, conn, acc_name, token):
+    async with SEM:
+        logger.info(f"Starting fetch for client: {acc_name}")
+        next_timestamp = 0
 
-        if data["total"] == 0:
-            logger.info(f"No events for client {acc_name}. Stopping fetch.")
-            break
+        while next_timestamp is not None:
+            data = await fetch_events_page(session, token, next_timestamp)
 
-        # Insert this batch into the database with client info
-        insert_events(conn, events, acc_name)
+            if data["total"] == 0:
+                logger.info(f"No events for client {acc_name}. Stopping.")
+                break
 
-        next_timestamp = data["next_ts"]
+            insert_events(conn, data["events"], acc_name)
+            next_timestamp = data["next_ts"]
 
-        # Add delay to respect rate limits
-        await asyncio.sleep(1)
+            await asyncio.sleep(1)  # per-client rate limit
 
-    logger.info(f"{acc_name}: finished fetching all events")
+        logger.info(f"{acc_name}: finished fetching")
 
 
 async def test_call_one_client():
@@ -130,10 +130,11 @@ async def upload_all_data():
     conn = create_connection_w_env()
 
     async with aiohttp.ClientSession() as session:
-        for acc_name, token in tokens.items():
-            await fetch_all_for_client(session, conn, acc_name, token)
-
-    logger.info("All clients processed")
+        tasks = [
+            fetch_all_for_client(session, conn, acc_name, token)
+            for acc_name, token in tokens.items()
+        ]
+        await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":
