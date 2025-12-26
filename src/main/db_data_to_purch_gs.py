@@ -49,7 +49,8 @@ ORDERS_RENAME = {
     "shipment_date": "Дата отгрузки",
     "receipt_transaction_number": "Номер приходной операции",
     "cancelled_due_to": "Причина аннулирования",
-    "comment": "Комментарий"
+    "comment": "Комментарий",
+    "planned_cost": "Плановая себестоимость"
 }
 
 SUPPLY_RENAME = {
@@ -67,7 +68,9 @@ SUPPLY_RENAME = {
     "update_document_datetime": "Дата обновления документа",
     "author_of_the_change": "Автор изменения",
     "our_organizations_name": "Название нашей организации",
-    "is_valid": "Корректность документа"
+    "is_valid": "Корректность документа",
+    "price_per_item": "Цена за единицу",
+    "planned_cost": "Плановая себестоимость"
 }
 
 
@@ -91,7 +94,7 @@ def load_orders_data(months):
         "actual_quantity", "currency",
         "unit_price", "last_purchase_price", "last_purchase_supplier", "payment_indicator",
         "payment_document_number", "shipment_date::date AS shipment_date",
-        "receipt_transaction_number", "cancelled_due_to", "comment"
+        "receipt_transaction_number", "cancelled_due_to", "comment", "planned_cost"
     ]
     cols_str = ", ".join(columns)
     query = f'''
@@ -101,7 +104,7 @@ def load_orders_data(months):
       AND update_document_datetime >= '2025-05-01' --NOW() - INTERVAL '{months} months';
     '''
     df = get_df_from_db(query)
-    return df
+    return df.fillna('')
 
 
 def load_supply_data(months):
@@ -114,7 +117,7 @@ def load_supply_data(months):
         "local_vendor_code", "product_name", "event_status", "quantity",
         "amount_with_vat", "amount_without_vat", "supplier_name", "supplier_code",
         "update_document_datetime", "author_of_the_change", "our_organizations_name",
-        "is_valid"
+        "is_valid", "amount_with_vat / NULLIF(quantity, 0) as price_per_item", "planned_cost"
     ]
     cols_str = ", ".join(columns)
     query = f'''
@@ -124,7 +127,7 @@ def load_supply_data(months):
       AND update_document_datetime >= '2025-05-01' -- NOW() - INTERVAL '{months} months';
     '''
     df = get_df_from_db(query)
-    return df
+    return df.fillna('')
 
 def load_wb_supplies():
     query = '''
@@ -265,6 +268,7 @@ def update_orders_by_regions(client, logger = logger):
     )
     logger.info('Данные успешно добавлены на лист Заказы_Регионы')
 
+
 if __name__ == "__main__":
     
     try:
@@ -322,32 +326,32 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f'Ошибка при обновлении листа "Приходы_1С": {e}')
     
-    try:
-        wb_supplies = load_wb_supplies()
-        wb_supplies['Статус'] = wb_supplies['Статус'].map({
-            1: "Не запланировано",
-            2: "Запланировано",
-            3: "Отгрузка разрешена",
-            4: "Идёт приёмка",
-            5: "Принято",
-            6: "Отгружено на воротах",
-        })
+    # try:
+    #     wb_supplies = load_wb_supplies()
+    #     wb_supplies['Статус'] = wb_supplies['Статус'].map({
+    #         1: "Не запланировано",
+    #         2: "Запланировано",
+    #         3: "Отгрузка разрешена",
+    #         4: "Идёт приёмка",
+    #         5: "Принято",
+    #         6: "Отгружено на воротах",
+    #     })
 
-        for col in ["Плановая дата поставки", "Фактическая дата поставки"]:
-            if col in wb_supplies.columns:
-                wb_supplies[col] = wb_supplies[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
-                wb_supplies[col] = pd.to_datetime(wb_supplies[col], errors='coerce')
-                wb_supplies[col] = wb_supplies[col].dt.strftime('%d.%m.%Y')
-                wb_supplies[col] = wb_supplies[col].fillna('')
+    #     for col in ["Плановая дата поставки", "Фактическая дата поставки"]:
+    #         if col in wb_supplies.columns:
+    #             wb_supplies[col] = wb_supplies[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
+    #             wb_supplies[col] = pd.to_datetime(wb_supplies[col], errors='coerce')
+    #             wb_supplies[col] = wb_supplies[col].dt.strftime('%d.%m.%Y')
+    #             wb_supplies[col] = wb_supplies[col].fillna('')
 
-        wb_output = [wb_supplies.columns.tolist()] + wb_supplies.values.tolist()
-        wb_supplies_sh = gs_table.worksheet('БД_поставки')
-        wb_supplies_sh.update(values = wb_output, range_name = 'A2')
-        wb_supplies_sh.update(
-            values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
-            range_name='A1'
-        )
-        logger.info('Данные успешно добавлены на лист "БД_поставки"')
+    #     wb_output = [wb_supplies.columns.tolist()] + wb_supplies.values.tolist()
+    #     wb_supplies_sh = gs_table.worksheet('БД_поставки')
+    #     wb_supplies_sh.update(values = wb_output, range_name = 'A2')
+    #     wb_supplies_sh.update(
+    #         values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
+    #         range_name='A1'
+    #     )
+    #     logger.info('Данные успешно добавлены на лист "БД_поставки"')
 
     except Exception as e:
         logger.error(f'Failed to upload data to БД_поставки: {e}')
