@@ -25,23 +25,53 @@ def load_data_from_db(round_price = False):
     '''
 
     # запрос
-    db_table = 'supply_to_sellers_warehouse'
     query = f'''
-    SELECT DISTINCT ON (local_vendor_code)
-        supply_date,
-        guid,
-        document_number,
-        local_vendor_code,
-        product_name,
-        amount_with_vat,
-        quantity,
-        ROUND(amount_with_vat/quantity, 2) as price_per_item
-    FROM {db_table}
-    WHERE is_valid = True
+    WITH latest_purchase_price AS (
+        SELECT DISTINCT ON (local_vendor_code)
+            supply_date,
+            guid,
+            document_number,
+            local_vendor_code,
+            product_name,
+            amount_with_vat,
+            quantity,
+            ROUND(amount_with_vat / quantity, 2) AS latest_price_per_item, -- renamed
+            currency,
+            planned_cost
+        FROM supply_to_sellers_warehouse
+        WHERE is_valid = TRUE
         AND local_vendor_code LIKE 'wild%'
         AND supplier_name != 'РВБ ООО'
         AND quantity != 0
-    ORDER BY local_vendor_code, supply_date DESC
+        ORDER BY local_vendor_code, supply_date DESC
+    )
+    SELECT
+        lpp.supply_date,
+        lpp.guid,
+        lpp.document_number,
+        lpp.local_vendor_code,
+        lpp.product_name,
+        lpp.amount_with_vat,
+        lpp.quantity,
+        latest_price_per_item,
+        -- FINAL price_per_item
+        CASE
+            WHEN lpp.currency IS NOT NULL AND lpp.currency != '643'
+                THEN lpp.planned_cost
+            ELSE lpp.latest_price_per_item
+        END AS price_per_item,
+        lpp.currency,
+        lpp.planned_cost,
+        -- Alarm column
+        CASE
+            WHEN lpp.currency IS NOT NULL
+            AND lpp.currency != '643'
+            AND (lpp.planned_cost IS NULL OR lpp.planned_cost = 0)
+                THEN 'ALARM: planned_cost missing'
+            ELSE NULL
+        END AS alarm_flag
+    FROM latest_purchase_price lpp
+    ORDER BY lpp.local_vendor_code;
     '''
 
     # выгружаем в df
@@ -215,6 +245,10 @@ def send_report(data):
     except Exception as e:
         logger.error(f'Error sending report to the table Изменение закупочной цены:\n{e}')
         raise
+
+
+def connect_to_sopost():
+    return gs.connect_to_remote_sheet('UNIT 2.0 (tested)', 'Сопост')
 
 
 if __name__ == "__main__":
