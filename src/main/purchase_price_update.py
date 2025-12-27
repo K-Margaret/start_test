@@ -245,12 +245,7 @@ def send_report(data):
     except Exception as e:
         logger.error(f'Error sending report to the table Изменение закупочной цены:\n{e}')
         raise
-
-
-def connect_to_sopost():
-    return gs.connect_to_remote_sheet('UNIT 2.0 (tested)', 'Сопост')
-
-
+    
 if __name__ == "__main__":
 
     try:
