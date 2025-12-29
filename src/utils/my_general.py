@@ -2,7 +2,7 @@ import json
 from decimal import Decimal
 from collections import defaultdict
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 def ensure_datetime(d):
     """Convert string 'yyyy-mm-dd' to datetime, or return datetime as-is."""
@@ -198,3 +198,8 @@ def clean_datetime_from_timezone(val):
     if isinstance(val, str) and 'T' in val and '-' in val and 'Z' in val:
         return datetime.fromisoformat(val.replace("Z", ""))
     return val
+
+
+def date_from_now(days: int, fmt = '%Y-%m-%d'):
+    dt = datetime.now().date() + timedelta(days=days)
+    return dt.strftime(fmt) if fmt else dt

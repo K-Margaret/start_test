@@ -326,32 +326,32 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f'Ошибка при обновлении листа "Приходы_1С": {e}')
     
-    # try:
-    #     wb_supplies = load_wb_supplies()
-    #     wb_supplies['Статус'] = wb_supplies['Статус'].map({
-    #         1: "Не запланировано",
-    #         2: "Запланировано",
-    #         3: "Отгрузка разрешена",
-    #         4: "Идёт приёмка",
-    #         5: "Принято",
-    #         6: "Отгружено на воротах",
-    #     })
+    try:
+        wb_supplies = load_wb_supplies()
+        wb_supplies['Статус'] = wb_supplies['Статус'].map({
+            1: "Не запланировано",
+            2: "Запланировано",
+            3: "Отгрузка разрешена",
+            4: "Идёт приёмка",
+            5: "Принято",
+            6: "Отгружено на воротах",
+        })
 
-    #     for col in ["Плановая дата поставки", "Фактическая дата поставки"]:
-    #         if col in wb_supplies.columns:
-    #             wb_supplies[col] = wb_supplies[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
-    #             wb_supplies[col] = pd.to_datetime(wb_supplies[col], errors='coerce')
-    #             wb_supplies[col] = wb_supplies[col].dt.strftime('%d.%m.%Y')
-    #             wb_supplies[col] = wb_supplies[col].fillna('')
+        for col in ["Плановая дата поставки", "Фактическая дата поставки"]:
+            if col in wb_supplies.columns:
+                wb_supplies[col] = wb_supplies[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
+                wb_supplies[col] = pd.to_datetime(wb_supplies[col], errors='coerce')
+                wb_supplies[col] = wb_supplies[col].dt.strftime('%d.%m.%Y')
+                wb_supplies[col] = wb_supplies[col].fillna('')
 
-    #     wb_output = [wb_supplies.columns.tolist()] + wb_supplies.values.tolist()
-    #     wb_supplies_sh = gs_table.worksheet('БД_поставки')
-    #     wb_supplies_sh.update(values = wb_output, range_name = 'A2')
-    #     wb_supplies_sh.update(
-    #         values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
-    #         range_name='A1'
-    #     )
-    #     logger.info('Данные успешно добавлены на лист "БД_поставки"')
+        wb_output = [wb_supplies.columns.tolist()] + wb_supplies.values.tolist()
+        wb_supplies_sh = gs_table.worksheet('БД_поставки')
+        wb_supplies_sh.update(values = wb_output, range_name = 'A2')
+        wb_supplies_sh.update(
+            values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
+            range_name='A1'
+        )
+        logger.info('Данные успешно добавлены на лист "БД_поставки"')
 
     except Exception as e:
         logger.error(f'Failed to upload data to БД_поставки: {e}')
