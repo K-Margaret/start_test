@@ -50,7 +50,11 @@ ORDERS_RENAME = {
     "receipt_transaction_number": "Номер приходной операции",
     "cancelled_due_to": "Причина аннулирования",
     "comment": "Комментарий",
-    "planned_cost": "Плановая себестоимость"
+    "planned_cost": "Плановая себестоимость",
+    "reciept_number":"Номер чека",
+    "receipt_date": "Дата чека",
+    "reciept_quantity": "Чек кол-во",
+    "reciept_amount": "Чек стоимость"
 }
 
 SUPPLY_RENAME = {
@@ -79,29 +83,78 @@ def load_orders_data(months):
     Загружает данные из БД ordered_goods_from_buyers за последние `months` месяцев.
     Загружает только конкретные колонки для стабильности.
     """
-    columns = [
-        "id", "guid", "document_number",
-        "document_created_at::date AS document_created_at",
-        "supply_date::date AS supply_date",
-        "local_vendor_code", "product_name", "event_status", "quantity",
-        "amount_with_vat", "amount_without_vat", "supplier_name", "supplier_code",
-        "update_document_datetime::date AS update_document_datetime",
-        "author_of_the_change", "our_organizations_name",
-        "warehouse_id", "is_valid", "in_acceptance",
-        "created_at::date AS created_at",
-        "is_printed_barcode", "acceptance_completed",
-        "expected_receipt_date::date AS expected_receipt_date",
-        "actual_quantity", "currency",
-        "unit_price", "last_purchase_price", "last_purchase_supplier", "payment_indicator",
-        "payment_document_number", "shipment_date::date AS shipment_date",
-        "receipt_transaction_number", "cancelled_due_to", "comment", "planned_cost"
-    ]
-    cols_str = ", ".join(columns)
-    query = f'''
-    SELECT {cols_str}
-    FROM ordered_goods_from_buyers
-    WHERE is_valid = TRUE
-      AND update_document_datetime >= '2025-05-01' --NOW() - INTERVAL '{months} months';
+
+    # columns = [
+    #     "id", "guid", "document_number",
+    #     "document_created_at::date AS document_created_at",
+    #     "supply_date::date AS supply_date",
+    #     "local_vendor_code", "product_name", "event_status", "quantity",
+    #     "amount_with_vat", "amount_without_vat", "supplier_name", "supplier_code",
+    #     "update_document_datetime::date AS update_document_datetime",
+    #     "author_of_the_change", "our_organizations_name",
+    #     "warehouse_id", "is_valid", "in_acceptance",
+    #     "created_at::date AS created_at",
+    #     "is_printed_barcode", "acceptance_completed",
+    #     "expected_receipt_date::date AS expected_receipt_date",
+    #     "actual_quantity", "currency",
+    #     "unit_price", "last_purchase_price", "last_purchase_supplier", "payment_indicator",
+    #     "payment_document_number", "shipment_date::date AS shipment_date",
+    #     "receipt_transaction_number", "cancelled_due_to", "comment", "planned_cost"
+    # ]
+    # cols_str = ", ".join(columns)
+    # query = f'''
+    # SELECT {cols_str}
+    # FROM ordered_goods_from_buyers
+    # WHERE is_valid = TRUE
+    #   AND update_document_datetime >= '2025-05-01' --NOW() - INTERVAL '{months} months';
+    # '''
+
+    query = '''
+        select
+        main.id,
+        main.guid,
+        main.document_number,
+        main.document_created_at::date AS document_created_at,
+        main.supply_date::date AS supply_date,
+        main.local_vendor_code,
+        main.product_name,
+        main.event_status,
+        main.quantity,
+        main.amount_with_vat,
+        main.amount_without_vat,
+        main.supplier_name,
+        main.supplier_code,
+        main.update_document_datetime::date AS update_document_datetime,
+        main.author_of_the_change,
+        main.our_organizations_name,
+        main.warehouse_id,
+        main.is_valid,
+        main.in_acceptance,
+        main.created_at::date AS created_at,
+        main.is_printed_barcode,
+        main.acceptance_completed,
+        main.expected_receipt_date::date AS expected_receipt_date,
+        main.actual_quantity,
+        main.currency,
+        main.unit_price,
+        main.last_purchase_price,
+        main.last_purchase_supplier,
+        main.payment_indicator,
+        main.payment_document_number,
+        main.shipment_date::date AS shipment_date,
+        main.receipt_transaction_number,
+        main.cancelled_due_to,
+        main.comment,
+        main.planned_cost,
+        receipts.reciept_number,
+        receipts.reciept_date::date AS receipt_date,
+        receipts.reciept_quantity,
+        receipts.reciept_amount
+    FROM ordered_goods_from_buyers AS main
+    LEFT JOIN receipts_for_ordered_goods_from_buyers AS receipts
+        ON main.id = receipts.ordered_goods_from_buyers_id
+    WHERE main.is_valid = TRUE
+    AND main.update_document_datetime >= DATE '2025-05-01';
     '''
     df = get_df_from_db(query)
     return df.fillna('')
@@ -279,7 +332,7 @@ if __name__ == "__main__":
         orders_db = load_orders_data(months = months)
 
         datetime_cols = ['document_created_at', 'supply_date', 'update_document_datetime',
-                 'created_at', 'expected_receipt_date', 'shipment_date']
+                 'created_at', 'expected_receipt_date', 'shipment_date', 'receipt_date']
 
         for col in datetime_cols:
             if col in orders_db.columns:
@@ -301,57 +354,57 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f'Ошибка при обновлении листа "Заказы_поставщиков_1С": {e}')
 
-    try:
-        supply_db = load_supply_data(months = months)
+    # try:
+    #     supply_db = load_supply_data(months = months)
 
-        datetime_cols = ['document_created_at', 'supply_date', 'update_document_datetime']
+    #     datetime_cols = ['document_created_at', 'supply_date', 'update_document_datetime']
 
-        for col in datetime_cols:
-            if col in supply_db.columns:
-                supply_db[col] = supply_db[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
-                supply_db[col] = pd.to_datetime(supply_db[col], errors='coerce')
-                supply_db[col] = supply_db[col].dt.strftime('%d.%m.%Y')
-                supply_db[col] = supply_db[col].fillna('')
+    #     for col in datetime_cols:
+    #         if col in supply_db.columns:
+    #             supply_db[col] = supply_db[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
+    #             supply_db[col] = pd.to_datetime(supply_db[col], errors='coerce')
+    #             supply_db[col] = supply_db[col].dt.strftime('%d.%m.%Y')
+    #             supply_db[col] = supply_db[col].fillna('')
 
-        supply_renamed = supply_db.rename(columns=SUPPLY_RENAME)
-        supply_output = [supply_renamed.columns.tolist()] + supply_renamed.values.tolist()
-        supply_sh = gs_table.worksheet('Приходы_1С')
-        supply_sh.update(values = supply_output, range_name = 'A2')
-        supply_sh.update(
-            values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
-            range_name='A1'
-        )
-        logger.info('Данные успешно добавлены на лист "Приходы_1С"')
+    #     supply_renamed = supply_db.rename(columns=SUPPLY_RENAME)
+    #     supply_output = [supply_renamed.columns.tolist()] + supply_renamed.values.tolist()
+    #     supply_sh = gs_table.worksheet('Приходы_1С')
+    #     supply_sh.update(values = supply_output, range_name = 'A2')
+    #     supply_sh.update(
+    #         values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
+    #         range_name='A1'
+    #     )
+    #     logger.info('Данные успешно добавлены на лист "Приходы_1С"')
 
-    except Exception as e:
-        logger.error(f'Ошибка при обновлении листа "Приходы_1С": {e}')
+    # except Exception as e:
+    #     logger.error(f'Ошибка при обновлении листа "Приходы_1С": {e}')
     
-    try:
-        wb_supplies = load_wb_supplies()
-        wb_supplies['Статус'] = wb_supplies['Статус'].map({
-            1: "Не запланировано",
-            2: "Запланировано",
-            3: "Отгрузка разрешена",
-            4: "Идёт приёмка",
-            5: "Принято",
-            6: "Отгружено на воротах",
-        })
+    # try:
+    #     wb_supplies = load_wb_supplies()
+    #     wb_supplies['Статус'] = wb_supplies['Статус'].map({
+    #         1: "Не запланировано",
+    #         2: "Запланировано",
+    #         3: "Отгрузка разрешена",
+    #         4: "Идёт приёмка",
+    #         5: "Принято",
+    #         6: "Отгружено на воротах",
+    #     })
 
-        for col in ["Плановая дата поставки", "Фактическая дата поставки"]:
-            if col in wb_supplies.columns:
-                wb_supplies[col] = wb_supplies[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
-                wb_supplies[col] = pd.to_datetime(wb_supplies[col], errors='coerce')
-                wb_supplies[col] = wb_supplies[col].dt.strftime('%d.%m.%Y')
-                wb_supplies[col] = wb_supplies[col].fillna('')
+    #     for col in ["Плановая дата поставки", "Фактическая дата поставки"]:
+    #         if col in wb_supplies.columns:
+    #             wb_supplies[col] = wb_supplies[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
+    #             wb_supplies[col] = pd.to_datetime(wb_supplies[col], errors='coerce')
+    #             wb_supplies[col] = wb_supplies[col].dt.strftime('%d.%m.%Y')
+    #             wb_supplies[col] = wb_supplies[col].fillna('')
 
-        wb_output = [wb_supplies.columns.tolist()] + wb_supplies.values.tolist()
-        wb_supplies_sh = gs_table.worksheet('БД_поставки')
-        wb_supplies_sh.update(values = wb_output, range_name = 'A2')
-        wb_supplies_sh.update(
-            values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
-            range_name='A1'
-        )
-        logger.info('Данные успешно добавлены на лист "БД_поставки"')
+    #     wb_output = [wb_supplies.columns.tolist()] + wb_supplies.values.tolist()
+    #     wb_supplies_sh = gs_table.worksheet('БД_поставки')
+    #     wb_supplies_sh.update(values = wb_output, range_name = 'A2')
+    #     wb_supplies_sh.update(
+    #         values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
+    #         range_name='A1'
+    #     )
+    #     logger.info('Данные успешно добавлены на лист "БД_поставки"')
 
     except Exception as e:
         logger.error(f'Failed to upload data to БД_поставки: {e}')
