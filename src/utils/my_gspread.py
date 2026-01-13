@@ -325,6 +325,31 @@ def add_data_to_google_sheet(sheet, data, take_headers_from_google_sheet = True)
 
 # -------------------------------- УДАЛЕНИЕ ДАННЫХ --------------------------------
 
+def clean_extra_rows(sh, inserted_data, sheet_name="Sheet", logger=None):
+    """
+    Cleans rows in the worksheet below the inserted data.
+    
+    sh: gspread worksheet object
+    inserted_data: list of lists that was just inserted
+    sheet_name: optional, for logging
+    """
+    # Number of rows inserted
+    n_inserted = len(inserted_data)
+    # Total number of rows in the sheet
+    total_rows = sh.row_count
+
+    # If there are extra rows below inserted data, clear them
+    if total_rows > n_inserted:
+        range_to_clear = f"A{n_inserted+1}:Z{total_rows}"  # Adjust Z if your sheet has more columns
+        sh.batch_clear([range_to_clear])
+        n_cleared = total_rows - n_inserted
+    else:
+        n_cleared = 0
+
+    if logger is not None:
+        logger.info(f"Cleaned {n_cleared} rows in {sheet_name}")
+
+
 
 def delete_rows_by_index(sh, row_indices, trash_sheet=None, dont_delete = False):
     """
