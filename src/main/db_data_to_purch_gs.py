@@ -329,52 +329,52 @@ if __name__ == "__main__":
         client = init_client()
         gs_table = client.open(LOCAL_TABLE)
 
-    #     orders_db = load_orders_data(months = months)
+        orders_db = load_orders_data(months = months)
 
-    #     datetime_cols = ['document_created_at', 'supply_date', 'update_document_datetime',
-    #              'created_at', 'expected_receipt_date', 'shipment_date', 'receipt_date']
+        datetime_cols = ['document_created_at', 'supply_date', 'update_document_datetime',
+                 'created_at', 'expected_receipt_date', 'shipment_date', 'receipt_date']
 
-    #     for col in datetime_cols:
-    #         if col in orders_db.columns:
-    #             orders_db[col] = orders_db[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
-    #             orders_db[col] = pd.to_datetime(orders_db[col], errors='coerce')
-    #             orders_db[col] = orders_db[col].dt.strftime('%d.%m.%Y')
-    #             orders_db[col] = orders_db[col].fillna('')
+        for col in datetime_cols:
+            if col in orders_db.columns:
+                orders_db[col] = orders_db[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
+                orders_db[col] = pd.to_datetime(orders_db[col], errors='coerce')
+                orders_db[col] = orders_db[col].dt.strftime('%d.%m.%Y')
+                orders_db[col] = orders_db[col].fillna('')
 
-    #     orders_renamed = orders_db.rename(columns=ORDERS_RENAME)
+        orders_renamed = orders_db.rename(columns=ORDERS_RENAME)
 
-    #     orders_output = [orders_renamed.columns.tolist()] + orders_renamed.values.tolist()
-    #     orders_sh = gs_table.worksheet('Заказы_поставщиков_1С')
-    #     orders_sh.update(values = orders_output, range_name = 'A2')
-    #     orders_sh.update(
-    #         values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
-    #         range_name='A1'
-    #     )
-    #     logger.info('Данные успешно добавлены на лист "Заказы_поставщиков_1С"')
-    # except Exception as e:
-    #     logger.error(f'Ошибка при обновлении листа "Заказы_поставщиков_1С": {e}')
+        orders_output = [orders_renamed.columns.tolist()] + orders_renamed.values.tolist()
+        orders_sh = gs_table.worksheet('Заказы_поставщиков_1С')
+        orders_sh.update(values = orders_output, range_name = 'A2')
+        orders_sh.update(
+            values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
+            range_name='A1'
+        )
+        logger.info('Данные успешно добавлены на лист "Заказы_поставщиков_1С"')
+    except Exception as e:
+        logger.error(f'Ошибка при обновлении листа "Заказы_поставщиков_1С": {e}')
 
-    # try:
-    #     supply_db = load_supply_data(months = months)
+    try:
+        supply_db = load_supply_data(months = months)
 
-    #     datetime_cols = ['document_created_at', 'supply_date', 'update_document_datetime']
+        datetime_cols = ['document_created_at', 'supply_date', 'update_document_datetime']
 
-    #     for col in datetime_cols:
-    #         if col in supply_db.columns:
-    #             supply_db[col] = supply_db[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
-    #             supply_db[col] = pd.to_datetime(supply_db[col], errors='coerce')
-    #             supply_db[col] = supply_db[col].dt.strftime('%d.%m.%Y')
-    #             supply_db[col] = supply_db[col].fillna('')
+        for col in datetime_cols:
+            if col in supply_db.columns:
+                supply_db[col] = supply_db[col].replace(['0', '00.00.0000', 0, ''], pd.NA)
+                supply_db[col] = pd.to_datetime(supply_db[col], errors='coerce')
+                supply_db[col] = supply_db[col].dt.strftime('%d.%m.%Y')
+                supply_db[col] = supply_db[col].fillna('')
 
-    #     supply_renamed = supply_db.rename(columns=SUPPLY_RENAME)
-    #     supply_output = [supply_renamed.columns.tolist()] + supply_renamed.values.tolist()
-    #     supply_sh = gs_table.worksheet('Приходы_1С')
-    #     supply_sh.update(values = supply_output, range_name = 'A2')
-    #     supply_sh.update(
-    #         values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
-    #         range_name='A1'
-    #     )
-    #     logger.info('Данные успешно добавлены на лист "Приходы_1С"')
+        supply_renamed = supply_db.rename(columns=SUPPLY_RENAME)
+        supply_output = [supply_renamed.columns.tolist()] + supply_renamed.values.tolist()
+        supply_sh = gs_table.worksheet('Приходы_1С')
+        supply_sh.update(values = supply_output, range_name = 'A2')
+        supply_sh.update(
+            values=[[f"Обновлено {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"]],
+            range_name='A1'
+        )
+        logger.info('Данные успешно добавлены на лист "Приходы_1С"')
 
     except Exception as e:
         logger.error(f'Ошибка при обновлении листа "Приходы_1С": {e}')
