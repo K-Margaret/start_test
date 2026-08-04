@@ -19,3 +19,13 @@ The codebase handles the continuous, automated ingestion, validation, and synchr
 │   ├── main/              # Core operational scripts (e.g., automated pipelines, DB syncs)
 │   └── utils/             # Shared helper functions, connectors, and data validation logic
 └── README.md
+```
+
+## 🛠️ Tech Stack
+- **Language**: Python 3.x.
+- **Core Concepts:**: ETL Pipelines, API Integration, Exception Handling, Structured Logging, Database Synchronization.
+- **Environment**: Managed via virtual environments and externalized configuration files (e.g., .env).
+
+```
+⚠️ Security & Sanitization Note: This repository contains sanitized code for portfolio purposes. All production credentials, proprietary business logic, specific company identifiers, and sensitive endpoints have been removed or replaced with mock configurations to comply with data security and NDA best practices.
+```
