@@ -27,5 +27,8 @@ The codebase handles the continuous, automated ingestion, validation, and synchr
 - **Environment**: Managed via virtual environments and externalized configuration files (e.g., .env).
 
 ```
-⚠️ Security & Sanitization Note: This repository contains sanitized code for portfolio purposes. All production credentials, proprietary business logic, specific company identifiers, and sensitive endpoints have been removed or replaced with mock configurations to comply with data security and NDA best practices.
+⚠️ Security & Sanitization Note: This repository contains sanitized code for portfolio purposes.
+All production credentials, proprietary business logic, specific company identifiers, and
+sensitive endpoints have been removed or replaced with mock configurations to comply with data
+security and NDA best practices.
 ```
